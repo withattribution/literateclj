@@ -1,1 +1,57 @@
-* This is going to be my first literate programming journey through learning Clojure
+* 4Clojure Problems
+** [[https://www.4clojure.com/problem/33][#33 Replicate a Sequence]]
+   This initially made me think about the ~dotimes~ function however ~do times~ takes an n variable and ranges from 0 to n. Instead I used ~repeat~ to and ~take~ to build a basic understanding of the problem.
+#+begin_src clojure :results silent
+  (flatten (take 4 (repeat 4 [:a])))
+  ;; => (:a :a :a :a)
+#+end_src
+    One approach could be to map across the entire sequence.
+#+begin_src clojure
+  ((fn [coll n]
+    (flatten (map (fn [x] (take n (repeat n x))) coll))) [:a :b] 4)
+  ;; => (:a :a :a :a :b :b :b :b)
+#+end_src
+   However it should also be possible to use ~reduce~ and perhaps drop the ~flatten~ function.
+#+begin_src clojure
+  ((fn [coll n]
+    (reduce (fn [f s]
+              (apply conj f (take n (repeat n s))))
+            []
+            coll)) [:a :b] 4)
+  ;; => [:a :a :a :a :b :b :b :b]
+#+end_src
+   The brilliant apply step shown above is referenced from a [[https://github.com/morrxy/4clojure/blob/master/problem/33.Replicate%20a%20Sequence.clj][solution]] online and here it is helpful to see apply as a way to push conj into the the following sequence, e.g. without the apply the output is ~[(:a :a :a :a) (:b :b :b :b)]~, and apply can be seen as applying conj to the inner parens ~(conj :a :a :a :a)~ rather than ~(conj (:a :a :a :a))~
+   In the same link above is the solution ~(fn [s n] (mapcat (partial repeat n) s))~ highlights a really perfect use of ~partial~ (functional thinking in action!) and introduces me to ~mapcat~. I now wonder if I can apply the ~partial~ function to more of my solutions as a way of practicing a kind of encapsulation without writing separate helper functions (a kind of internal encapsulation).
+** [[https://www.4clojure.com/problem/45][#45 Intro to Iterate]]
+   What I thought iterate would output is ~(4 4 4 4 4)~, that is, just taking the function and making an infinite sequence out of it. What it actually outputs is ~(1 4 7 10 13)~ which is x, f(x), f(f(x), f(f(f(x))), etc. This very much looks like a versatile variation of ~reduce~ and I wonder if previous examples could be solved with it (for example #33 Replicate a sequence).
+   A quick first attempt to see what iterate would look like gives me the impression that since iterate returns the first input as a result that this will either have to be stripped away, buuuut it does make me think of the fibonacci sequence where the initial values are a good candidate for the output
+ #+begin_src clojure
+   (take 5 (iterate #(+ 3 %) 1))
+   ;; => (1 4 7 10 13)
+ #+end_src
+
+ #+begin_src clojure
+   (take 2 (iterate #(repeat 4 %) [:a :b]))
+   ;; => ([:a :b] ([:a :b] [:a :b] [:a :b] [:a :b]))
+
+   ;; fib attempt
+   (take 5 (iterate #(+ % %) 1))
+   ;; => (1 2 4 8 16)
+   ;; => (1 2 3 4 5)
+
+   (#(take % (iterate (fn [[a b]] [b (+ a b)]) [1 1])) 8)
+   ;; => ([1 1] [1 2] [2 3] [3 5] [5 8] [8 13] [13 21] [21 34])
+   ;; => (1 1 2 3 5 8 13 21) after adding map first
+
+   ;; first I don't think I understand the destructuring
+   (let [[a b] [1 3]]
+      (str a " " b))
+   ;; => "1 3"
+ #+end_src
+     This keeps catching me out, when a vector is destructured to a vector the values are mapped to corresponding variable names so the above fib variation with iterate looks like return the vector that consists of the second input variable as the first result and the second result is the first input plus the second input, then feed that resulting vector into the same function so [1 1] -> [1 2] -> [2 3] -> [3 5] -> [5 8]
+  I suppose the discover fiction might have gone like:
+  1) first think about explaining exactly what the fib sequence is doing and pretend that there is a way to feed outputs of functions back to themselves iteratively.
+  2) then somehow one has to know that the iterate function is exactly what fits that imagined patter (of course pure recursion is probably the simpler approach) but given that iterate does exist then map first through that generated sequence.
+     For the discovery process to work it's important to think like feynman when he says It's ok not to know everything. Just move forward with the abstraction and take note of where you are stuck, the mind will create a kind of sieve that will make the solution pop out eventually!
+** [[https://www.4clojure.com/problem/47][#47 Contain Yourself]]
+   Using ~contains?~ on an indexed sequence takes the second argument to literally mean is index n in the sequence. However when used on a map or a map-like structure then ~contains?~ looks to see if the KEY is in the collection. Fun fact, I did not know until this exercise that a set is a map-like collection  but this makes sense to me in that a set can be thought of as a collection of keys, so key comparisons in ~contains~ returns true if key is in set.
