@@ -55,3 +55,110 @@
      For the discovery process to work it's important to think like feynman when he says It's ok not to know everything. Just move forward with the abstraction and take note of where you are stuck, the mind will create a kind of sieve that will make the solution pop out eventually!
 ** [[https://www.4clojure.com/problem/47][#47 Contain Yourself]]
    Using ~contains?~ on an indexed sequence takes the second argument to literally mean is index n in the sequence. However when used on a map or a map-like structure then ~contains?~ looks to see if the KEY is in the collection. Fun fact, I did not know until this exercise that a set is a map-like collection  but this makes sense to me in that a set can be thought of as a collection of keys, so key comparisons in ~contains~ returns true if key is in set.
+** [[https://www.4clojure.com/problem/31][#31 Pack a Sequence
+   ]]Pack consecutive duplicates into sub-lists
+This was so simple since I've had some experience with partition-by in the past. It's a good example of when the ~identity~ function is valuable (hard to imagine when just coming across it for the first time!)
+#+begin_src clojure
+(partition-by identity [1 1 2 1 1 1 3 3])
+#+end_src
+** [[https://www.4clojure.com/problem/40][#40 Interpose a Sequence]]
+   Without the function interpose, here is my first attempt. Still some effort involved to remember that any time I see a function applied to each index in a seq then the first thought should be map. This seems like there could be a more elegant solution, in particular I'm not fond of the ~flatten~ seems like there could be a simpler answer
+#+begin_src clojure
+((fn [v coll]
+   (flatten (map (fn [x] (conj [] x v)) coll)) ) :z [:a :b :c :d])
+;; => (:a :z :b :z :c :z :d :z)
+#+end_src
+ ...on closer inspection it seems like I got this one wrong, the last term should not be added, so the problem is to add something within the range of the collection...hmmm
+#+begin_src clojure
+((fn [v coll]
+   (butlast (flatten (map (fn [x] (conj [] x v)) coll)))) 0 [1 2 3])
+;; => (1 0 2 0 3)
+#+end_src
+...so now I am definitely suspicious that this is not as elegant as is possible so lets look at some other solutions to learn from them. Looks like I'm not alone in my approach but two other approaches interest me in that they introduce ~interleave~ and also use ~reduce~ (which is also seems like a pattern, anything map can do reduce can do better!). Looking at reduce first:
+#+begin_src clojure
+;; reduce here is using an accumulator which is a common pattern
+;; lets start with the naive implementation
+(reduce (fn [acc x] (conj acc x 0))
+        []
+        [1 2 3])
+;; => [1 0 2 0 3 0]
+;; so we can get rid of the flatten with reduce however
+;; it does look like we're stuck with either droplast or butlast
+;; Other solutions show us how to drop the flatten with mapcat
+(mapcat (fn [x] (list x 0)) [1 2 3]);; => (1 0 2 0 3 0)
+;; this is a good example of getting rid of flatten and still
+;; keeping the simplicity of map but also it's nice to note that
+;; the list function is a very simple way to make two things that
+;; are not a collection into a list collection, this should be the
+;; goto instead of fidgeting around with cons, conj, and into...
+;; finally let's look at interleave
+(#(interleave % (repeat 0)) [1 2 3])
+;; => (1 0 2 0 3 0)
+;; I really like this solution because the concept of using
+;; repeat as a generative collection that simply produces a result as
+;; they are needed seems succinct and powerful. It's also a way of thinking
+;; that is foreign to me and so using it and seeing it really helps imagine
+;; concrete use cases (or rather I believe it will make me more likely to apply
+;; it in the future!)
+#+end_src
+
+** [[https://www.4clojure.com/problem/41][#41 Drop Every Nth Item]]
+   Given coll and N drop ever N from coll
+#+begin_src clojure
+(def coll [1 2 3 4 5 6 7 8])
+(partition 3 coll)
+;; => ((1 2 3) (4 5 6))
+;; oops this drops the last group if it is smaller than 3!
+(partition-all 3 coll);; => ((1 2 3) (4 5 6) (7 8))
+;; partition-all gives us the remaining partition even if it's size is too
+;; small but we need to uniformly apply butlast to all so we need to pad instead
+;; partition takes a n items, a step size which usually defaults to n, a padding
+;; which here we use the vector of zero arbitrarily and the collection! perfect!
+(partition 3 3 [0] coll)
+;; => ((1 2 3) (4 5 6) (7 8 0))
+((fn [c n]
+   (mapcat butlast (partition n n [0] c))) coll 3);; => (1 2 4 5 7 8)
+;; I bet there is a way to use reduce
+((fn [c n]
+   (reduce (fn [acc x] (apply conj acc (butlast x)))
+           []
+           (partition n n [0] c))) coll 3)
+;; => [(1 2) (4 5) (7 8)] <-- solution before adding apply
+;; => [1 2 4 5 7 8]
+;; this is so cool because not only is this an alternate solution
+;; using reduce, it also applies the apply logic to push the conj
+;; into the group so that there is no need for a flatten!
+#+end_src
+There are a few other solutions that warrant a closer look:
+#+begin_src clojure
+;; keep is like map where nil results are filtered from the final answer
+;; keep-indexed is like map-indexed where nil results are filtered and f
+;; requires both an index and a value
+((fn [c n]
+   (keep-indexed ;; so %1 and %2 below are idx and item of the coll
+     #(if (> (mod (inc %1) n) 0) %2) c))
+ coll 3)
+;; => (1 2 4 5 7 8)
+;; if mod is > 0 keep the value in the list, so in this example every 3rd
+;; item is kept and the rest are thrown out! A poor mans partition!
+
+;; the partition-all solution is rather elegant as well
+;; partition-all takes a partition size n, a step and a coll
+;; partition-all keeps chunks that are smaller than the partition size
+;; unlike partition-by which is "wasteful" and drops the extra
+(partition-all (dec 3) 3 coll)
+;; => ((1 2) (4 5) (7 8))
+;; then apply concat slides into the groupings and stitches it all
+;; back into a flat seq
+(apply concat (partition-all (dec 3) 3 coll));; => (1 2 4 5 7 8)
+;; i think the key piece is that partition size is 2 for this example
+;; and step size is 3 so partion-all steps over the last item effectively
+;; dropping it!
+#+end_src
+
+
+* SICMutils
+**
+#+begin_src clojure
+
+#+end_src
