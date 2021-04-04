@@ -1,4 +1,125 @@
 * 4Clojure Problems
+** [[https://www.4clojure.com/problem/21][#21 Nth from seq]]
+   My first attempt is a non-functional approach but hey, non-functional thinking that gets to a solution is valid right?
+#+begin_src clojure
+((fn [coll idx]
+   (loop [remain coll
+          i      0]
+     (if (or (nil? remain) (= idx i)) ; checks to see if seq over, party!
+       (first remain)
+       (let [[_ & r] remain] ; using destructuring to take rest of remain
+         (recur r (inc i)))))) '(4 5 6 7) 2)
+;; => 6
+(rest '(4 5 6 7))
+;; => (5 6 7)
+;; so an easy win here is similar but using rest
+((fn [coll idx]
+   (loop [remain coll
+          i      0]
+     (if (or (nil? remain) (= idx i)) ; checks to see if seq over, party!
+       (first remain)
+       (recur (rest remain) (inc i))))) '(4 5 6 7) 2)
+;; => 6
+;; this at least gets rid of the extra let form
+;; a more clever version is
+(#(last (take (inc %2) %1)) '(4 5 6 7) 2)
+;; => 6
+(drop 1 [1 2 3 4]);; => (2 3 4)
+;; drop drops from the front, nice
+(#(first (drop %2 %1)) '(4 5 6 7) 2)
+;; => 6
+#+end_src
+?
+** [[https://www.4clojure.com/problem/22][#22 Count a seq]]uence
+   Why not try another loop?
+#+begin_src clojure
+(#(loop [coll %
+         i    0]
+    (if (empty? coll)
+      i
+      (recur (rest coll) (inc i)))) '(1 2 3 3 1))
+;; => 5
+#+end_src
+Some of the solutions seemed pretty advanced to me even after coming back, let's take a look:
+#+begin_src clojure
+;; using reduce with constantly
+(constantly 1)
+;; => #function[clojure.core/constantly/fn--5690]
+;; huh, this is now a function that takes any number of args and returns 1
+((constantly 1) 100 2 3);; => 1
+;; a really fascinating way to count a seq is with mapping this function
+;; across all values of the sequence and reduce + to accumulate the final value
+(reduce + (map (constantly 1) [1 2 3 3 1]));; => 5
+
+;; only incrementing the accumulator in reduce is quite creative!
+(#(reduce (fn [a b] (inc a)) 0 %) '(1 2 3 3 1))
+;; => 5
+#+end_src
+** [[https://www.4clojure.com/problem/23][#23 Reverse a sequence]]
+   Without using ~reverse~ or ~rseq~ I remember a trick using ~conj~ on a list is supposed to reverse it since lists add at the head and ~into~ uses ~conj~ behind the scenes
+#+begin_src clojure
+(#(into () %) [1 2 3 4 5])
+;; => (5 4 3 2 1)
+#+end_src
+I think I'm pretty clever here...ha, let's look at some other solutions
+#+begin_src clojure
+;; reduce conj is another way of saying into
+(#(reduce conj () %) [1 2 3 4 5])
+;; => (5 4 3 2 1)
+
+;; this is interesting and not immediately obvious to me
+(#(reduce
+    (fn [rs ls] (cons ls rs)) [] %) [1 2 3 4 5])
+;; => (5 4 3 2 1)
+(cons 1 []);; => (1)
+(cons 2 '(1));; => (2 1)
+(cons 3 '(2 1));; => (3 2 1)
+;; ok cool, this is the reverse of my method but the same logic of
+;; adding a number to the head of a list (reverse as in reverse order
+;; this is number first then list my solution is list first then number)
+#+end_src
+** [[https://www.4clojure.com/problem/25][#25 Return only odd numbers]]
+  First attempt and realized that != is not= in clojure
+#+begin_src clojure
+((fn [s] filter #(not= 0 (mod % 2)) s) '(1 3 5))
+;; => (1 3 5)
+#+end_src
+The code golf and probably the clojure way is:
+#+begin_src clojure
+(#(filter odd? %) '(1 3 5))
+;; => (1 3 5)
+#+end_src
+** [[https://www.4clojure.com/problem/26][#26 Fibonacci Sequence]]
+   Write a function that returns the X numbers in the Fibonacci sequences.
+
+   The Fibonacci sequence is like the hello world of recursion, and for me it's both a difficult and fascinating problem. Not gonna lie this took me a while and to be honest I'm going to have to look at this a few more times for it to really start to feel natural, but writing this in clojure is perhaps the most intuitive, the following are a number of explorations and even this is not inclusive of everything I tried!
+#+begin_src clojure
+;; most of the time fib sequences are given 1 1 as the start
+;; my first thought is to understand how the fib seq is constructed
+;; $$i^{2+n}$$
+#+end_src
+** [[https://www.4clojure.com/problem/27][#27 Palindrome Detector]]
+   I feel like my answer is cheating since I'm only checking if the first and last items match, but it passes!
+#+begin_src clojure
+(#(let [v %]
+    (= (first v) (last v))) '(1 1 1 3 3 1 1 1))
+;; => true
+#+end_src
+So here are the honest solutions
+#+begin_src clojure
+;; this first solution uses reverse which is probably a great function to know about
+(#(= (seq %) (reverse (seq %))) "racecar")
+;; => true
+;; here seq is used to force a string into a collection, otherwise
+;; "racecar" ->  '(\r \a \c \e \c \a \r)
+#+end_src
+:
+** [[https://www.4clojure.com/problem/31][#31 Pack a Sequence
+   ]]Pack consecutive duplicates into sub-lists
+This was so simple since I've had some experience with partition-by in the past. It's a good example of when the ~identity~ function is valuable (hard to imagine when just coming across it for the first time!)
+#+begin_src clojure
+(partition-by identity [1 1 2 1 1 1 3 3])
+#+end_src
 ** [[https://www.4clojure.com/problem/33][#33 Replicate a Sequence]]
    This initially made me think about the ~dotimes~ function however ~do times~ takes an n variable and ranges from 0 to n. Instead I used ~repeat~ to and ~take~ to build a basic understanding of the problem.
 #+begin_src clojure :results silent
@@ -22,45 +143,6 @@
 #+end_src
    The brilliant apply step shown above is referenced from a [[https://github.com/morrxy/4clojure/blob/master/problem/33.Replicate%20a%20Sequence.clj][solution]] online and here it is helpful to see apply as a way to push conj into the the following sequence, e.g. without the apply the output is ~[(:a :a :a :a) (:b :b :b :b)]~, and apply can be seen as applying conj to the inner parens ~(conj :a :a :a :a)~ rather than ~(conj (:a :a :a :a))~
    In the same link above is the solution ~(fn [s n] (mapcat (partial repeat n) s))~ highlights a really perfect use of ~partial~ (functional thinking in action!) and introduces me to ~mapcat~. I now wonder if I can apply the ~partial~ function to more of my solutions as a way of practicing a kind of encapsulation without writing separate helper functions (a kind of internal encapsulation).
-** [[https://www.4clojure.com/problem/45][#45 Intro to Iterate]]
-   What I thought iterate would output is ~(4 4 4 4 4)~, that is, just taking the function and making an infinite sequence out of it. What it actually outputs is ~(1 4 7 10 13)~ which is x, f(x), f(f(x), f(f(f(x))), etc. This very much looks like a versatile variation of ~reduce~ and I wonder if previous examples could be solved with it (for example #33 Replicate a sequence).
-   A quick first attempt to see what iterate would look like gives me the impression that since iterate returns the first input as a result that this will either have to be stripped away, buuuut it does make me think of the fibonacci sequence where the initial values are a good candidate for the output
- #+begin_src clojure
-   (take 5 (iterate #(+ 3 %) 1))
-   ;; => (1 4 7 10 13)
- #+end_src
-
- #+begin_src clojure
-   (take 2 (iterate #(repeat 4 %) [:a :b]))
-   ;; => ([:a :b] ([:a :b] [:a :b] [:a :b] [:a :b]))
-
-   ;; fib attempt
-   (take 5 (iterate #(+ % %) 1))
-   ;; => (1 2 4 8 16)
-   ;; => (1 2 3 4 5)
-
-   (#(take % (iterate (fn [[a b]] [b (+ a b)]) [1 1])) 8)
-   ;; => ([1 1] [1 2] [2 3] [3 5] [5 8] [8 13] [13 21] [21 34])
-   ;; => (1 1 2 3 5 8 13 21) after adding map first
-
-   ;; first I don't think I understand the destructuring
-   (let [[a b] [1 3]]
-      (str a " " b))
-   ;; => "1 3"
- #+end_src
-     This keeps catching me out, when a vector is destructured to a vector the values are mapped to corresponding variable names so the above fib variation with iterate looks like return the vector that consists of the second input variable as the first result and the second result is the first input plus the second input, then feed that resulting vector into the same function so [1 1] -> [1 2] -> [2 3] -> [3 5] -> [5 8]
-  I suppose the discover fiction might have gone like:
-  1) first think about explaining exactly what the fib sequence is doing and pretend that there is a way to feed outputs of functions back to themselves iteratively.
-  2) then somehow one has to know that the iterate function is exactly what fits that imagined patter (of course pure recursion is probably the simpler approach) but given that iterate does exist then map first through that generated sequence.
-     For the discovery process to work it's important to think like feynman when he says It's ok not to know everything. Just move forward with the abstraction and take note of where you are stuck, the mind will create a kind of sieve that will make the solution pop out eventually!
-** [[https://www.4clojure.com/problem/47][#47 Contain Yourself]]
-   Using ~contains?~ on an indexed sequence takes the second argument to literally mean is index n in the sequence. However when used on a map or a map-like structure then ~contains?~ looks to see if the KEY is in the collection. Fun fact, I did not know until this exercise that a set is a map-like collection  but this makes sense to me in that a set can be thought of as a collection of keys, so key comparisons in ~contains~ returns true if key is in set.
-** [[https://www.4clojure.com/problem/31][#31 Pack a Sequence
-   ]]Pack consecutive duplicates into sub-lists
-This was so simple since I've had some experience with partition-by in the past. It's a good example of when the ~identity~ function is valuable (hard to imagine when just coming across it for the first time!)
-#+begin_src clojure
-(partition-by identity [1 1 2 1 1 1 3 3])
-#+end_src
 ** [[https://www.4clojure.com/problem/40][#40 Interpose a Sequence]]
    Without the function interpose, here is my first attempt. Still some effort involved to remember that any time I see a function applied to each index in a seq then the first thought should be map. This seems like there could be a more elegant solution, in particular I'm not fond of the ~flatten~ seems like there could be a simpler answer
 #+begin_src clojure
@@ -156,6 +238,41 @@ There are a few other solutions that warrant a closer look:
 ;; dropping it!
 #+end_src
 
+** [[https://www.4clojure.com/problem/45][#45 Intro to Iterate]]
+   What I thought iterate would output is ~(4 4 4 4 4)~, that is, just taking the function and making an infinite sequence out of it. What it actually outputs is ~(1 4 7 10 13)~ which is x, f(x), f(f(x), f(f(f(x))), etc. This very much looks like a versatile variation of ~reduce~ and I wonder if previous examples could be solved with it (for example #33 Replicate a sequence).
+   A quick first attempt to see what iterate would look like gives me the impression that since iterate returns the first input as a result that this will either have to be stripped away, buuuut it does make me think of the fibonacci sequence where the initial values are a good candidate for the output
+ #+begin_src clojure
+ (take 5 (iterate #(+ 3 %) 1))
+ ;; => (1 4 7 10 13)
+
+ (+ 1 1);; => 2
+ #+end_src
+
+ #+begin_src clojure
+   (take 2 (iterate #(repeat 4 %) [:a :b]))
+   ;; => ([:a :b] ([:a :b] [:a :b] [:a :b] [:a :b]))
+
+   ;; fib attempt
+   (take 5 (iterate #(+ % %) 1))
+   ;; => (1 2 4 8 16)
+   ;; => (1 2 3 4 5)
+
+   (#(take % (iterate (fn [[a b]] [b (+ a b)]) [1 1])) 8)
+   ;; => ([1 1] [1 2] [2 3] [3 5] [5 8] [8 13] [13 21] [21 34])
+   ;; => (1 1 2 3 5 8 13 21) after adding map first
+
+   ;; first I don't think I understand the destructuring
+   (let [[a b] [1 3]]
+      (str a " " b))
+   ;; => "1 3"
+ #+end_src
+     This keeps catching me out, when a vector is destructured to a vector the values are mapped to corresponding variable names so the above fib variation with iterate looks like return the vector that consists of the second input variable as the first result and the second result is the first input plus the second input, then feed that resulting vector into the same function so [1 1] -> [1 2] -> [2 3] -> [3 5] -> [5 8]
+  I suppose the discover fiction might have gone like:
+  1) first think about explaining exactly what the fib sequence is doing and pretend that there is a way to feed outputs of functions back to themselves iteratively.
+  2) then somehow one has to know that the iterate function is exactly what fits that imagined patter (of course pure recursion is probably the simpler approach) but given that iterate does exist then map first through that generated sequence.
+     For the discovery process to work it's important to think like feynman when he says It's ok not to know everything. Just move forward with the abstraction and take note of where you are stuck, the mind will create a kind of sieve that will make the solution pop out eventually!
+** [[https://www.4clojure.com/problem/47][#47 Contain Yourself]]
+   Using ~contains?~ on an indexed sequence takes the second argument to literally mean is index n in the sequence. However when used on a map or a map-like structure then ~contains?~ looks to see if the KEY is in the collection. Fun fact, I did not know until this exercise that a set is a map-like collection  but this makes sense to me in that a set can be thought of as a collection of keys, so key comparisons in ~contains~ returns true if key is in set.
 ** [[https://www.4clojure.com/problem/49][#49 Split a sequence]]
    Without using split-at, is a good clue to look at split-at but instead looking at the first params shows us that it's not an index to split at, instead it reads more like ~take~, as in ~take~ the first 3 and return the rest...like maybe ~cons~
 #+begin_src clojure
@@ -169,66 +286,7 @@ There are a few other solutions that warrant a closer look:
 ~juxt~ is especially interesting in that it takes left to right order and applies to the inputs so for something like juxt f(x) g(x), f is applied first to the inputs and then independently g is applied to the inputs and the results are returned as a tuple (f,g). This is related to comp however comp applies right to left (normal order) and pushes the inputs, in our above example this would look like applying function g and then pushing the results of function g into function f finally returning results.
 ** [[https://www.4clojure.com/problem/51][#51 Advanced Destructuring]]
    https://blog.brunobonacci.com/2014/11/16/clojure-complete-guide-to-destructuring/
-** [[https://www.4clojure.com/problem/83][#83 A half truth]]
-   Function should return true if some but not all of the params are true, all false is false, all true is false, some true is true, sounds like I should investigate ~and~ : and looks stops on false and returns that value, if and makes it to the end it returns the final value. Or stops on true evaluations and returns the value or makes it to the end and returns the last value.
-   More succinctly put, and continues with true, or continues with false
-#+begin_src clojure
-;; various forms of and applied to sequence
-(and true false nil)
-;; => false
-;; => nil
-;; => false
-;; => 4
-
-;; still having trouble applying and to a collection
-((fn [& d] (and false true false)) false true false)
-;; => false
-
-;; here is just my logic templated out short circuiting that problem of applying
-;; and to a collection
-((fn [& c] (and (= (and false true false) false) (= (or false true false) true))) false true false)
-;; => true
-;; => false
-;; => false
-#+end_src
-So it turns out that using ~apply~ with ~and~ or any other macro is a big fail, I have marked this particular issue as something to figure out once I am more knowledgeable about how to write a macro and what is specifically happening but it is good to note this behaviour for now.
-However there may be more luck using ~every~ and ~not-every
-#+begin_src clojure
-(every? identity '(false true false))
-;; => false
-(not-every? true? '(false true false))
-;; => true
-(every? identity '(false false false))
-;; => false
-(every? identity '(true true true))
-;; => true
-((fn [& c] (and (not-every? false? c) (not-every? true? c))) true  false true)
-;; => true
-
-;; this is almost an english sentence in terms of how clear it is
-
-#+end_src
-Some of the difficulties that I had were that I had to remember how to take multiple individual inputs and scoop them up into a collection. This is what the [& c] is for, however I had never seen that without a first variable such as [a & c] so I did not know that the &c would be the entire sequence if there was no preceding variables, great to note! The rest of my difficulty was that I did not know that you cannot ~apply~ a macro and ~and~ and ~or~ are macros, so I ditched those macros and used not-every? which turned out to read more clearly to me. One solution I found as simple as mine but using slightly different funcs:
-#+begin_src clojure
-((fn [& xs]
-   (true? (and (some true? xs) (some false? xs)))) true false true)
-;; => true
-;; this is equivalent to what I used with not-every? however it's arguably
-;; even more readable as some true some false shoulder shrug? almost like
-;; and idiom or like comme ci comme ca in french
-((fn [& xs]
-   (and (some true? xs) (some false? xs))) false false)
-;; => nil
-;; => nil
-;; thinking to try to remove the first true? reveals that all true or false
-;; returns nil
-(some true? '(false false));; => nil
-;; which is exactly how some works so in this particular case I believe my answer
-;; with not-every? is even more clear than this example and shorter without them
-;; extra true? evaluation -- party!
-#+end_src
-
-** [[https://www.4clojure.com/problem/61][#61 Map Construction]]
+** [[https://www.4clojure.com/problem/61][#61 Map Constructions]]
    Given two collections, make a map where the first coll are the keys and the second are the values without using ~zipmap~ : first thought ~map-indexed~ ... which is a weird first thought...
 #+begin_src clojure
 ((fn [c1 c2]
@@ -341,8 +399,65 @@ Looking at other solutions:
 ((fn [ks vs] (reduce merge (map (fn [k v] {k v}) ks vs))) [:a :b :c] [1 2 3]);; => {:a 1, :b 2, :c 3}
 #+end_src
 
-* SICMutils
-**
+** [[https://www.4clojure.com/problem/66][#66 GCD]]
+
+** [[https://www.4clojure.com/problem/83][#83 A half truth]]
+   Function should return true if some but not all of the params are true, all false is false, all true is false, some true is true, sounds like I should investigate ~and~ : and looks stops on false and returns that value, if and makes it to the end it returns the final value. Or stops on true evaluations and returns the value or makes it to the end and returns the last value.
+   More succinctly put, and continues with true, or continues with false
 #+begin_src clojure
+;; various forms of and applied to sequence
+(and true false nil)
+;; => false
+;; => nil
+;; => false
+;; => 4
+
+;; still having trouble applying and to a collection
+((fn [& d] (and false true false)) false true false)
+;; => false
+
+;; here is just my logic templated out short circuiting that problem of applying
+;; and to a collection
+((fn [& c] (and (= (and false true false) false) (= (or false true false) true))) false true false)
+;; => true
+;; => false
+;; => false
+#+end_src
+So it turns out that using ~apply~ with ~and~ or any other macro is a big fail, I have marked this particular issue as something to figure out once I am more knowledgeable about how to write a macro and what is specifically happening but it is good to note this behaviour for now.
+However there may be more luck using ~every~ and ~not-every
+#+begin_src clojure
+(every? identity '(false true false))
+;; => false
+(not-every? true? '(false true false))
+;; => true
+(every? identity '(false false false))
+;; => false
+(every? identity '(true true true))
+;; => true
+((fn [& c] (and (not-every? false? c) (not-every? true? c))) true  false true)
+;; => true
+
+;; this is almost an english sentence in terms of how clear it is
 
 #+end_src
+Some of the difficulties that I had were that I had to remember how to take multiple individual inputs and scoop them up into a collection. This is what the [& c] is for, however I had never seen that without a first variable such as [a & c] so I did not know that the &c would be the entire sequence if there was no preceding variables, great to note! The rest of my difficulty was that I did not know that you cannot ~apply~ a macro and ~and~ and ~or~ are macros, so I ditched those macros and used not-every? which turned out to read more clearly to me. One solution I found as simple as mine but using slightly different funcs:
+#+begin_src clojure
+((fn [& xs]
+   (true? (and (some true? xs) (some false? xs)))) true false true)
+;; => true
+;; this is equivalent to what I used with not-every? however it's arguably
+;; even more readable as some true some false shoulder shrug? almost like
+;; and idiom or like comme ci comme ca in french
+((fn [& xs]
+   (and (some true? xs) (some false? xs))) false false)
+;; => nil
+;; => nil
+;; thinking to try to remove the first true? reveals that all true or false
+;; returns nil
+(some true? '(false false));; => nil
+;; which is exactly how some works so in this particular case I believe my answer
+;; with not-every? is even more clear than this example and shorter without them
+;; extra true? evaluation -- party!
+#+end_src
+
+* SICMutils
