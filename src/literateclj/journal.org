@@ -156,6 +156,190 @@ There are a few other solutions that warrant a closer look:
 ;; dropping it!
 #+end_src
 
+** [[https://www.4clojure.com/problem/49][#49 Split a sequence]]
+   Without using split-at, is a good clue to look at split-at but instead looking at the first params shows us that it's not an index to split at, instead it reads more like ~take~, as in ~take~ the first 3 and return the rest...like maybe ~cons~
+#+begin_src clojure
+(#(cons (take %1 %2) (vector (drop %1 %2))) 3 [1 2 3 4 5 6])
+;; => ((1 2 3) (4 5 6))
+(#(list (take %1 %2) (drop %1 %2)) 3 [1 2 3 4 5 6])
+;; => ((1 2 3) (4 5 6))
+((juxt take drop) 3 [1 2 3 4 5 6])
+;; => [(1 2 3) (4 5 6)]
+#+end_src
+~juxt~ is especially interesting in that it takes left to right order and applies to the inputs so for something like juxt f(x) g(x), f is applied first to the inputs and then independently g is applied to the inputs and the results are returned as a tuple (f,g). This is related to comp however comp applies right to left (normal order) and pushes the inputs, in our above example this would look like applying function g and then pushing the results of function g into function f finally returning results.
+** [[https://www.4clojure.com/problem/51][#51 Advanced Destructuring]]
+   https://blog.brunobonacci.com/2014/11/16/clojure-complete-guide-to-destructuring/
+** [[https://www.4clojure.com/problem/83][#83 A half truth]]
+   Function should return true if some but not all of the params are true, all false is false, all true is false, some true is true, sounds like I should investigate ~and~ : and looks stops on false and returns that value, if and makes it to the end it returns the final value. Or stops on true evaluations and returns the value or makes it to the end and returns the last value.
+   More succinctly put, and continues with true, or continues with false
+#+begin_src clojure
+;; various forms of and applied to sequence
+(and true false nil)
+;; => false
+;; => nil
+;; => false
+;; => 4
+
+;; still having trouble applying and to a collection
+((fn [& d] (and false true false)) false true false)
+;; => false
+
+;; here is just my logic templated out short circuiting that problem of applying
+;; and to a collection
+((fn [& c] (and (= (and false true false) false) (= (or false true false) true))) false true false)
+;; => true
+;; => false
+;; => false
+#+end_src
+So it turns out that using ~apply~ with ~and~ or any other macro is a big fail, I have marked this particular issue as something to figure out once I am more knowledgeable about how to write a macro and what is specifically happening but it is good to note this behaviour for now.
+However there may be more luck using ~every~ and ~not-every
+#+begin_src clojure
+(every? identity '(false true false))
+;; => false
+(not-every? true? '(false true false))
+;; => true
+(every? identity '(false false false))
+;; => false
+(every? identity '(true true true))
+;; => true
+((fn [& c] (and (not-every? false? c) (not-every? true? c))) true  false true)
+;; => true
+
+;; this is almost an english sentence in terms of how clear it is
+
+#+end_src
+Some of the difficulties that I had were that I had to remember how to take multiple individual inputs and scoop them up into a collection. This is what the [& c] is for, however I had never seen that without a first variable such as [a & c] so I did not know that the &c would be the entire sequence if there was no preceding variables, great to note! The rest of my difficulty was that I did not know that you cannot ~apply~ a macro and ~and~ and ~or~ are macros, so I ditched those macros and used not-every? which turned out to read more clearly to me. One solution I found as simple as mine but using slightly different funcs:
+#+begin_src clojure
+((fn [& xs]
+   (true? (and (some true? xs) (some false? xs)))) true false true)
+;; => true
+;; this is equivalent to what I used with not-every? however it's arguably
+;; even more readable as some true some false shoulder shrug? almost like
+;; and idiom or like comme ci comme ca in french
+((fn [& xs]
+   (and (some true? xs) (some false? xs))) false false)
+;; => nil
+;; => nil
+;; thinking to try to remove the first true? reveals that all true or false
+;; returns nil
+(some true? '(false false));; => nil
+;; which is exactly how some works so in this particular case I believe my answer
+;; with not-every? is even more clear than this example and shorter without them
+;; extra true? evaluation -- party!
+#+end_src
+
+** [[https://www.4clojure.com/problem/61][#61 Map Construction]]
+   Given two collections, make a map where the first coll are the keys and the second are the values without using ~zipmap~ : first thought ~map-indexed~ ... which is a weird first thought...
+#+begin_src clojure
+((fn [c1 c2]
+   (map (fn [x] (assoc {}) ))) [:a :b :c] [1 2 3]);; => ()
+
+(assoc {} :a 1)
+;; => {:a 1}
+
+(into [] [1] )
+;; => [1]
+
+(map (fn [x]
+       (reduce
+         (fn [acc y]
+           (assoc acc x y))
+         {}
+         [1 2 3])
+       )
+     [:a :b :c])
+;; => ({:a 3} {:b 3} {:c 3})
+
+;; function map should accept coll-number-of-params! this makes sense now!
+(map vector [1 2 3] [:a :b :c])
+;; => ([1 :a] [2 :b] [3 :c])
+
+(into (hash-map) [[1 :a] [2 :b] [3 :c]])
+;; => {1 :a, 2 :b, 3 :c}
+
+(map #(assoc {} %1 %2) [1 2 3] [:a :b :c])
+;; => ({1 :a} {2 :b} {3 :c})
+
+(into (hash-map) (map vector [1 2 3] [:a :b :c]))
+;; => {1 :a, 2 :b, 3 :c}
+
+(#(into (hash-map) (map vector %1 %2)) [:a :b :c] [1 2 3])
+;; => {:a 1, :b 2, :c 3}
+#+end_src
+This was absolutely just about working in the REPL trying to build an intuition, I struggled with is and in some ways I'm not surprised as my familiarity with maps in clojure are not as strong as with vectors and lists...although I suspect that maps have some of the more unique features that clojure has to offer
+Looking at other solutions:
+#+begin_src clojure
+;; using interleave, breaking it apart first
+( #(interleave %1 %2) [:a :b :c] [1 2 3])
+;; => (:a 1 :b 2 :c 3)
+(apply hash-map '(:a 1 :b 2 :c 3));; => {:c 3, :b 2, :a 1}
+
+;; i'm thinking that i just don't have a familiarity with hash-map
+;; built up
+(hash-map :a 1);; => {:a 1}
+(apply hash-map [:a 1]) ;; => {:a 1}
+(hash-map :a [:b 2])
+;; => {:a [:b 2]}
+
+;;so this is a very elegant solution
+(#(apply hash-map (interleave %1 %2)) [:a :b :c] [1 2 3])
+;; => {:c 3, :b 2, :a 1}
+
+;;walking through the following since there is still some confusion about
+;; how to effectively use map and reduce
+
+((fn [k v] (assoc {} k v)) :a 1);; => {:a 1}
+
+;;mapv is a map that returns a vector
+(mapv (fn [k v] (assoc {} k v)) [:a :b :c] [1 2 3]);; => [{:a 1} {:b 2} {:c 3}]
+
+;; and here is an example of reduce where the second value (a seq) is generated with
+;; a map function...probably a common pattern
+((fn [ks vs]
+   (reduce conj {} (mapv (fn [k v] (assoc {} k v)) ks vs))) [:a :b :c] [1 2 3])
+;; => {:a 1, :b 2, :c 3}
+;; very cool and very fundamental usage where a sequence of values is almost
+;; attached to the end of another function, which is reduce here ;)
+
+;; a simpler version can be attached in the same place without using mapv
+;; and perhaps using even simpler logic
+(map (fn [k v] {k v}) [:a :b :c] [1 2 3]);; => ({:a 1} {:b 2} {:c 3})
+;; this simpler form takes the key and value and places it into a map literal
+;; instead of using assoc and mapv is not explicitly needed
+(conj {} {:a 1});; => {:a 1}
+;; however it is good to remind ourselves that reduce and map take a sequence
+;; but they only evaluate it one time at a time, and so it is taken outside of
+;; the sequence for evaluation (this is of course so obvious but noting it means
+;; perhaps that I understand something is automatically given to us here -> almost
+;; like a free ~apply~ if that makes sense)
+
+;; we can take the exact seq generating function and use into instead of reduce
+((fn [ks vs] (into {} (map (fn [k v] {k v}) ks vs))) [:a :b :c] [1 2 3]);; => {:a 1, :b 2, :c 3}
+(into (into {} {:a 1}) {:b 2})
+;; => {:a 1, :b 2}
+;; into is still somewhat confusing to me so it's helpful to remember that it
+;; uses conj to add the internal collection to the to-collection
+;; in my mind conj seems like it is escaping the list or vector and applying
+;; itself to the internals of the collection which is not what I'm used to
+(conj () '(1 2 3))
+;; => ((1 2 3))
+;; however the differeGnce as saw above is that into uses reduce with conj
+;; and internally into also uses reduce and conj together, this is why this is
+;; confusing to me and now I see it! conj on it's own takes the entire collection
+;; not just the internals and adds it to the to-collection!
+;; anyhow a demonstration of this is below:
+(into {} [{:a 1} {:b 2} {:c 3}])
+;; => {:a 1, :b 2, :c 3}
+
+;; merge is a useful function that literally combines two maps together, where
+;; conflicting keys overwrite each other, the last key is the final result
+(merge {:a 1} {:b 2} {:c 3})
+;; => {:a 1, :b 2, :c 3}
+;; so using reduce with the previous collection (list of maps or vector of maps)
+;; will pluck the first two and then the final map and place it into a single map
+;; very handy!
+((fn [ks vs] (reduce merge (map (fn [k v] {k v}) ks vs))) [:a :b :c] [1 2 3]);; => {:a 1, :b 2, :c 3}
+#+end_src
 
 * SICMutils
 **
