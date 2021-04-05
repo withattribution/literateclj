@@ -239,12 +239,54 @@ So here are the honest solutions
 ;; "racecar" ->  '(\r \a \c \e \c \a \r)
 #+end_src
 :
+** [[https://www.4clojure.com/problem/29][#29 Get the caps]]
+   See string, think regex
+#+begin_src clojure
+(#(clojure.string/replace % #"[^A-Z]" "") "HeLlO, WoRlD!")
+;; => "HLOWRD"
+#+end_src
+ However it looks like other solutions unanimously used ~re-seq~
+#+begin_src clojure
+(#(apply str (re-seq #"[A-Z]+" %)) "$#A(*&987Zf")
+;; => "AZ"
+#+end_src
 ** [[https://www.4clojure.com/problem/31][#31 Pack a Sequence]]
    Pack consecutive duplicates into sub-lists
 This was so simple since I've had some experience with partition-by in the past. It's a good example of when the ~identity~ function is valuable (hard to imagine when just coming across it for the first time!)
 #+begin_src clojure
 (partition-by identity [1 1 2 1 1 1 3 3])
 #+end_src
+** [[https://www.4clojure.com/problem/32][#32 Duplicate a sequence]]
+   Double each item in a collection:
+#+begin_src clojure
+(#(sort (concat % %)) [1 2 3])
+;; => (1 2 3 1 2 3) -> pre sort
+;; => (1 1 2 2 3 3)
+#+end_src
+For some reason I don't like using sort like this, probably a sign that there's a simpler way. Luckily there are some interesting alternative answers out there:
+#+begin_src clojure
+;; I love seeing reduce used to build a sequence since much of the time
+;; I see the opposite
+(#(reduce (fn [acc x] (conj acc x x)) [] %) [1 2 3])
+;; => [1 1 2 2 3 3]
+;; reduce is just so clear here. see x twice, add x twice, nothing tricky
+
+;; ~using interleave~ however is a bit short and tricky to me
+(#(interleave % %) [1 2 3]);; => (1 1 2 2 3 3)
+;; but it's saying the same thing, it's just that interleave is not the first
+;; function I think of to use on itself, clever!
+
+;; where there is a reduce there is surely a ~map~
+(#(mapcat (fn [x] [x x]) %) [1 2 3])
+;; => (1 1 2 2 3 3)
+;; it's nice to note that this could have been a flatten map situation
+;; so when flatten and map are together I think of mapcat instead
+
+;; and finally just because I think the ~list~ function is overlooked
+(mapcat #(list % %) [1 2 3])
+;; => (1 1 2 2 3 3)
+#+end_src
+
 ** [[https://www.4clojure.com/problem/33][#33 Replicate a Sequence]]
    This initially made me think about the ~dotimes~ function however ~do times~ takes an n variable and ranges from 0 to n. Instead I used ~repeat~ to and ~take~ to build a basic understanding of the problem.
 #+begin_src clojure :results silent
@@ -268,6 +310,18 @@ This was so simple since I've had some experience with partition-by in the past.
 #+end_src
    The brilliant apply step shown above is referenced from a [[https://github.com/morrxy/4clojure/blob/master/problem/33.Replicate%20a%20Sequence.clj][solution]] online and here it is helpful to see apply as a way to push conj into the the following sequence, e.g. without the apply the output is ~[(:a :a :a :a) (:b :b :b :b)]~, and apply can be seen as applying conj to the inner parens ~(conj :a :a :a :a)~ rather than ~(conj (:a :a :a :a))~
    In the same link above is the solution ~(fn [s n] (mapcat (partial repeat n) s))~ highlights a really perfect use of ~partial~ (functional thinking in action!) and introduces me to ~mapcat~. I now wonder if I can apply the ~partial~ function to more of my solutions as a way of practicing a kind of encapsulation without writing separate helper functions (a kind of internal encapsulation).
+** [[https://www.4clojure.com/problem/38][#38 Maximum Value]]
+   Write a function that takes a variable number of arguments and return the maximum value. This was a rare moment where I believe the shortest answer just came to me:
+#+begin_src clojure
+(#(last (sort %&)) 1 8 3 4)
+;; => 8
+#+end_src
+The symbol %& is so elegant here because it scoops up all the individual elements and wraps them in a tidy collection, I'm sorta surprised that I haven't tried using this in other places but now on my second pass I'll see if that can happen. One other solution that uses ~reduce~ really expresses the logic of finding the max quite clearly:
+#+begin_src clojure
+(#(reduce (fn [f s] (if (> f s) f s)) %&) 1 8 3 4)
+;; => 8
+#+end_src
+While the first solution is shorter, I prefer the legibility of this last function, it really shows that reduce as a sieve that can scoop up and take certain values, plus bonus on using %& again!
 ** [[https://www.4clojure.com/problem/40][#40 Interpose a Sequence]]
    Without the function interpose, here is my first attempt. Still some effort involved to remember that any time I see a function applied to each index in a seq then the first thought should be map. This seems like there could be a more elegant solution, in particular I'm not fond of the ~flatten~ seems like there could be a simpler answer
 #+begin_src clojure
