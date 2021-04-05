@@ -97,36 +97,53 @@ The code golf and probably the clojure way is:
 ;; my first thought is to understand how the fib seq is constructed
 ;; starting with the values 1 1 we add the two together and add the result
 ;; to the sequence (1 1 2), repeating once more we take the last items from the
-;; list and add the result to the list (1 1 2 3) and so on, seems like a ~cons~ style recursion with a take-last add comp, but it looks like comp takes many arguments and I still keep being caught out by the difference between many args and a single collection of args!
+;; list and add the result to the list (1 1 2 3) and so on, seems like a ~cons~
+;; style recursion with a take-last add comp, but it looks like comp takes many
+;; arguments and I still keep being caught out by the difference between many
+;; args and a single collection of args!
 
 ;; instead let's see if this chunk can be recursed
 (apply + (take-last 2 '(1 2 3)))
 ;; => 5
+
+;; just writing this down because it seems to be a point of confusion still
+;; into is for working from collection to collection
 
 (into [1 1] [3])
 ;; => [1 1 3]
 (into [1 1] [[3] [1]])
 ;; => [1 1 [3] [1]]
 
-;; just writing this down because it seems to be a point of confusion still
-;; into is for working from collection to collection
+;; cons and conj are for building collections
+;; cons takes whatever is in the first arg and puts it into the second arg which
+;; must be a collection, and cons adds to the beginning
 
 (cons 1 [1 2 3])
 ;; => (1 1 2 3)
 (cons [1] [1 2 3])
 ;; => ([1] 1 2 3)
 
-;; cons and conj are for building collections
-;; cons takes whatever is in the first arg and puts it into the second arg which must be a collection, and cons adds to the beginning
+;; conj takes a collection and adds whatever follows to the collection, if the
+;; collection is a list it adds to the beginning and if it is a vector it adds
+;; it to the end, so the type of collection matters for placement
 
 (conj [1] 1)
 ;; => [1 1]
 (conj [1] [1])
 ;; => [1 [1]]
 
-;; conj takes a collection and adds whatever follows to the collection, if the collection is a list it adds to the beginning and if it is a vector it adds it to the end, so the type of collection matters for placement
-
-;; both cons and conj add entire collections to the sequence preserving the colleciton (see second example on both) where as into takes the inner collection, so when trying to add a collection of collections to a collection then a collection is added, if only trying to add a collection to another collection then the contents of the collection are added...see into examples. I hope this clears this up, I'm not sure why I'm not able to keep these straight but perhaps it's because I see them as so closely related to each other...
+;; into and conj have the to-collection on the left, cons is the outlier since
+;; it's to-colleciton is the second argument. This also means that cons can only
+;; take 2 arguments while into and conj take unlimited args.
+;; Both cons and conj add entire collections to the sequence preserving the
+;; colleciton (see second example on both) where as into takes the inner
+;; collection, so when trying to add a collection of collections to a collection
+;; then a collection is added, if only trying to add a collection to another
+;; collection then the contents of the collection are added...see into examples.
+;; I hope this clears this up, I'm not sure why I'm not able to keep these
+;; straight but perhaps it's because I see them as so closely related to each
+;; other...and they are in that the results are always collections, the devil is
+;; as usual in the details
 
 ((fn fib
    [coll n]
