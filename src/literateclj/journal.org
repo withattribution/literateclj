@@ -95,8 +95,134 @@ The code golf and probably the clojure way is:
 #+begin_src clojure
 ;; most of the time fib sequences are given 1 1 as the start
 ;; my first thought is to understand how the fib seq is constructed
-;; $$i^{2+n}$$
+;; starting with the values 1 1 we add the two together and add the result
+;; to the sequence (1 1 2), repeating once more we take the last items from the
+;; list and add the result to the list (1 1 2 3) and so on, seems like a ~cons~ style recursion with a take-last add comp, but it looks like comp takes many arguments and I still keep being caught out by the difference between many args and a single collection of args!
+
+;; instead let's see if this chunk can be recursed
+(apply + (take-last 2 '(1 2 3)))
+;; => 5
+
+(into [1 1] [3])
+;; => [1 1 3]
+(into [1 1] [[3] [1]])
+;; => [1 1 [3] [1]]
+
+;; just writing this down because it seems to be a point of confusion still
+;; into is for working from collection to collection
+
+(cons 1 [1 2 3])
+;; => (1 1 2 3)
+(cons [1] [1 2 3])
+;; => ([1] 1 2 3)
+
+;; cons and conj are for building collections
+;; cons takes whatever is in the first arg and puts it into the second arg which must be a collection, and cons adds to the beginning
+
+(conj [1] 1)
+;; => [1 1]
+(conj [1] [1])
+;; => [1 [1]]
+
+;; conj takes a collection and adds whatever follows to the collection, if the collection is a list it adds to the beginning and if it is a vector it adds it to the end, so the type of collection matters for placement
+
+;; both cons and conj add entire collections to the sequence preserving the colleciton (see second example on both) where as into takes the inner collection, so when trying to add a collection of collections to a collection then a collection is added, if only trying to add a collection to another collection then the contents of the collection are added...see into examples. I hope this clears this up, I'm not sure why I'm not able to keep these straight but perhaps it's because I see them as so closely related to each other...
+
+((fn fib
+   [coll n]
+   (conj coll (apply + (take-last 2 coll)))) [1 1] 3)
+;; => [1 1 2]
+
+;; the above structure reminds me of something that might be reducible
+(reduce (fn [f s] (conj [] f s (+ f s))) [1 1])
+;; => [1 1 2]
+
+(reductions (fn [f s] (conj f (apply + (take-last 2 f)))) [1 1] (range 5))
+;; => ([1 1] [1 1 2] [1 1 2 3] [1 1 2 3 5] [1 1 2 3 5 8] [1 1 2 3 5 8 13])
+;; => ([1 1] [1 1 2] [1 1 2 4] [1 1 2 4 8] [1 1 2 4 8 16] [1 1 2 4 8 16 32])
+;; => [1 1 2 4 8 16 32]
+
+;; brilliant! and it only took me 12 days! learned about using ~reductions~ to
+;; see the intermediate steps and also about debugging in cider by setting a
+;; breakpoint with , d b and stepping through the evaluation, super handy and
+;; worth the extra time spent. Also of note, took a break to run and shower
+;; had lunch while looking over the problem and boom, answer. Note to self:
+;; it is ok and often beneficial to step away for a moment (not the first time
+;; I've had to remind myself of this miraculous life-hack)
+
+;; final answer for 4clojure's purposes
+(#(reduce (fn [f s] (conj f (apply + (take-last 2 f)))) [1 1] (range (- % 2))) 5)
+;; => [1 1 2 3 5]
+
+(#(reduce (fn [f s] (conj f (apply + (drop s f)))) [1 1] (range (- % 2))) 5)
+;; => [1 1 2 3 5]
+
+(#(reduce (fn [f s] (conj f (apply + (drop s f)))) [1 1] (range (- % 2))) 7)
+;; => [1 1 2 3 5 8 13]
+
+;; as an added bonus the above also takes care of the more generalized version
+;; of the fibonacci seq if the starting vector is given as [0 1]
+
+;; I have to admit this is the second time that I've come across this fib problem
+;; in 4clojure and I thought I would try to refresh my memory by approaching it
+;; again with my slightly more mature knowledge of the core library my first
+;; solution is as follows:
+
+((fn [n]
+   (loop [m [1 1]]
+     (if (>= (count m) n)
+       m
+       (recur (conj m (+ (last m) (last (butlast m)))))))) 5)
+;; => [1 1 2 3 5]
+
+;; which looks like almost exactly the same internal logic of somehow
+;; add the starting vector to a collection and then take the last and the
+;; second last add them and then conj into the rolling collection.
+
+;; Here we see that I have put a block to essentially return the starting vector
+;; if n is less than 3 but then I return the starting vector, which is wrong for
+;; n 0,1,2. My solution only works for n > 3, so instead I can add take n as
+;; follows
+
+((fn [n]
+   (loop [m [1 1]]
+     (if (>= (count m) n)
+       (take n m)
+       (recur (conj m (+ (last m) (last (butlast m)))))))) 3)
+;; => (1 1 2) n = 3
+;; => (1 1)   n = 2
+;; => (1)     n = 1
+;; => ()      n = 0
+
+;; probably my favorite solution:
+(#(take % ((fn fib [f s] (lazy-seq (cons f (fib s (+ s f))))) 1 1)) 5)
+;; => (1 1 2 3 5)
+;; which looks like:
+;; fib [1 1] | fib [1 2] | fib [2 3] | fib [3 5] | fib [5 8] |
+;;  (cons 1     (cons 1     (cons 2     (cons 4      (cons 5 (empty) )))))
+;; which recursively reduces down as below: read right to left
+;; (1 1 2 3 5)  (1 3 4 5)   (2 3 5)     (3 5)        (5)
+;;
+;; the ~lazy-seq~ part still feels like magic but I know engough about it
+;; to know that it's used with something like ~take~
+
+;; the final solution that I'll look at here is one with ~iterate~
+;; iterate is an important function that again produces a lazy seq
+;; given a function and it's arguments
+;; (x,f(x),f(f(x)),f(f(f(x))),f(f(f(f(x))))...etc)
+;; what's nice about the fib seq is that it's logic is simple
+(fn [[x1 x2]] [x2 (+ x1 x2)])
+;; which very simply translates to given two arguments, return a vector
+;; containing the second arg first and the summation of both args as the
+;; second index. Putting this into iterate gives us:
+(take 5 (iterate (fn [[x1 x2]] [x2 (+ x1 x2)]) [1 1]))
+;; => ([1 1] [1 2] [2 3] [3 5] [5 8])
+;; which gives us a sequence where if we squint we can see the fib in
+;; the first index of each vector, to extract that we map
+(map first (take 5 (iterate (fn [[x1 x2]] [x2 (+ x1 x2)]) [1 1])))
+;; => (1 1 2 3 5)
 #+end_src
+And honestly, that's all I can take for the fibonacci sequence. While it is a fascinating problem it also is something that would help if I threw some of the key concepts into a space repetition deck, revisiting more than a few more times will certainly allow for more familiarity.
 ** [[https://www.4clojure.com/problem/27][#27 Palindrome Detector]]
    I feel like my answer is cheating since I'm only checking if the first and last items match, but it passes!
 #+begin_src clojure
