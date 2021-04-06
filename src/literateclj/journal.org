@@ -307,7 +307,7 @@ There's only one other solution which I think should be the goto answer:
 ;; using identity groups by well...the identity of the thing. Then once
 ;; those groups are formed map first selects one from each group!
 #+end_src
-
+I should mention that I was so incredibly lost the first time that I attempted this problem and this well written blog post really helped me out: [[https://medium.com/@daniel.oliver.king/getting-work-done-in-clojure-the-building-blocks-39ad82796926][Getting Work Done In Clojure]]
 ** [[https://www.4clojure.com/problem/31][#31 Pack a Sequence]]
    Pack consecutive duplicates into sub-lists
 This was so simple since I've had some experience with partition-by in the past. It's a good example of when the ~identity~ function is valuable (hard to imagine when just coming across it for the first time!)
@@ -368,6 +368,59 @@ For some reason I don't like using sort like this, probably a sign that there's 
 #+end_src
    The brilliant apply step shown above is referenced from a [[https://github.com/morrxy/4clojure/blob/master/problem/33.Replicate%20a%20Sequence.clj][solution]] online and here it is helpful to see apply as a way to push conj into the the following sequence, e.g. without the apply the output is ~[(:a :a :a :a) (:b :b :b :b)]~, and apply can be seen as applying conj to the inner parens ~(conj :a :a :a :a)~ rather than ~(conj (:a :a :a :a))~
    In the same link above is the solution ~(fn [s n] (mapcat (partial repeat n) s))~ highlights a really perfect use of ~partial~ (functional thinking in action!) and introduces me to ~mapcat~. I now wonder if I can apply the ~partial~ function to more of my solutions as a way of practicing a kind of encapsulation without writing separate helper functions (a kind of internal encapsulation).
+
+** [[https://www.4clojure.com/problem/34][Implement Range]]
+   Without using range of course, my first thought of course is a loop based solution but now that this is my second time attempting this let's see what I've learned:
+#+begin_src clojure
+;; here is my first naive approach, I'm surprised that it's a recursive
+;; solution!
+((fn cnt
+   [start finish]
+   (let [r (- finish start)]
+     (if (> r 0)
+       (cons start (cnt (inc start) finish))))) 1 4)
+;; => (1 2 3)
+
+;; one thing that I think is worth mentioning since I am seeing a lot of
+;; solutions to this problem online that use recursive/cons approach but
+;; also add an empty [] as an arg, the recursive cons approach works
+;; because on it's last iteration it produces an empty () where them
+;; call to recurse should be. This allows the second to last (or first from
+;; an execution perspective) cons to add it's first argument to an empty list!
+;; so the empty [] is not normally needed and adding it is a sign perhaps that
+;; the detail of "how does recursion stop and what does that look like" is not
+;; yet fully understood by the participant
+#+end_src
+Other solutions that I found interesting:
+#+begin_src clojure
+(#(take (- %2 %1) (iterate inc %1)) 1 4)
+;; => (1 2 3)
+
+;; I really like this solution, probably the clearest use of iterate which is
+;; a function that I'm trying to wrap my head around how to use more often
+
+;; here is a very clear loop/recur version.
+;; It's funny to me that I say this
+;; is clear since the work is being done by (conj acc start) which is buried
+;; at the bottom of the function and everything else is there to support
+;; the concept of immutable variables, also overwriting a local variable with
+;; the same name is not clear either
+((fn [start end]
+   (loop [start start
+          acc   []]
+     (if (>= start end)
+       acc
+       (recur (inc start) (conj acc start))))) 1 4)
+;; => [1 2 3]
+;; It's funny to me that I say this
+;; is clear since the work is being done by (conj acc start) which is buried
+;; at the bottom of the function and everything else is there to support
+;; the concept of immutable variables, also overwriting a local variable with
+;; the same name is not clear either so maybe what I mean is that the language often;; loop/recur is still mostly how I think, it's less cognitive load to read.
+
+
+#+end_src
+
 ** [[https://www.4clojure.com/problem/38][#38 Maximum Value]]
    Write a function that takes a variable number of arguments and return the maximum value. This was a rare moment where I believe the shortest answer just came to me:
 #+begin_src clojure
