@@ -267,6 +267,47 @@ So here are the honest solutions
 (#(apply str (re-seq #"[A-Z]+" %)) "$#A(*&987Zf")
 ;; => "AZ"
 #+end_src
+** [[https://www.4clojure.com/problem/30][#30 Compress a Sequence]]
+   The trick here is to notice that the function must remove consecutive duplicates and not duplicates, which of course would simply be solved by making a set out of the collection. I think ~reduce~ may do the trick here
+#+begin_src clojure
+(#(reduce (fn [acc x] (if (not= (last acc) x)
+                        (conj acc x)
+                        acc)) [] %) [1 1 2 3 3 2 2 3])
+
+;; this is embarrassing to admit but better now than never: I think I just
+;; understood how reduce works. I have used reduce in other languages and
+;; it is something that I've had to develop a sort of black box intuition
+;; about but now I see that the first arg (usually called acc for accumulator)
+;; is the result of calling f on the previous two args, the docs explain this
+;; as clear as day to me now and it's no longer surprising that the result looks
+;; like we're building up a function that looks like this in a lisp form
+;; (f(f(f(f(f(a0,a1),a2),a3),a4),a5),a6) and so on! This is the best kind of
+;; forehead slap moment!
+
+;; when I first encountered this problem I was still very much thinking about
+;; loops, and this was my somewhat hacked together solution:
+((fn
+   [coll]
+   (loop [c      coll
+          result []]
+     (if (empty? c)
+       result
+       (let [nr (if (not= (first c) (last result))
+                  (conj result (first c))
+                  result)]
+         (recur (rest c) nr))))) [1 1 2 3 3 2 2 3]);; => [1 2 3 2 3]
+#+end_src
+There's only one other solution which I think should be the goto answer:
+#+begin_src clojure
+(#(map first (partition-by identity %)) [1 1 2 3 3 2 2 3])
+;; => (1 2 3 2 3)
+
+;; I find this so so clever, partition uses an fn to select groups, if the fn
+;; returns the same answer then that value is grouped together, thereby
+;; using identity groups by well...the identity of the thing. Then once
+;; those groups are formed map first selects one from each group!
+#+end_src
+
 ** [[https://www.4clojure.com/problem/31][#31 Pack a Sequence]]
    Pack consecutive duplicates into sub-lists
 This was so simple since I've had some experience with partition-by in the past. It's a good example of when the ~identity~ function is valuable (hard to imagine when just coming across it for the first time!)
