@@ -256,6 +256,177 @@ So here are the honest solutions
 ;; "racecar" ->  '(\r \a \c \e \c \a \r)
 #+end_src
 :
+** [[https://www.4clojure.com/problem/28][Flatten a Sequence]]
+   Without using flatten...the first time around this problem gave me hell:
+#+begin_src clojure
+;; I'm thinking of using cond with recursion built in to each condition.
+;; Is there also a way to use apply here though?
+
+(apply conj [] '(:a))
+;; => [:a]
+(apply apply conj [] '((:a)))
+;; => [:a]
+(apply apply apply conj [] '(((:a))))
+;; => [:a]
+
+;; how do we get the depth of a value?
+(nth (nth '((:a)) 0) 0)
+;; => :a
+
+;; gotta say this problem still got me again, though this time I was most of the
+;; way there. With a problem like this using cond I really have to understand how
+;; the recursion finishes! For this  case when x is nil then the missing piece for
+;; me was to return an empty list () which would complete the final recursion
+;; ok at least I have a sense of where the logic broke down, that's at least
+;; something
+((fn fltn [[x & xs]]
+   (cond
+     (seq? x) (fltn x)
+     (nil? x) ()
+     :else    (cons x (fltn xs))
+     ))
+ '((((:a)))))
+;; => (:a)
+
+;; I remember this similar answer that probably subconsciously inspired me together
+;; to the above cond/recur:
+(fn fltn2 [[h & t]]                           ; 1)
+  (cond
+    (nil? h)        ()                           ; 2)
+    (sequential? h) (concat (fltn2 h) (fltn2 t)) ; 3)
+    :else           (cons h (fltn2 t)))) ; 4)
+
+;; 1) so here destructuring is like a free reverse cons
+;; 2) here is the crucial finishing step where an empty list is inserted into the
+;; :else con
+;; 3) while we still have nested collections we recurse over both the head and tail
+;; of the remaining sequence
+;; 4) finally, the :else is a kind of default condition that evaluates to true
+;; for any conditions that do not match the previous, ending with cons allows the
+;; nil condition to insert an empty list and signals the end of the recursion
+#+end_src
+I did not find this problem to be "easy" although it is in the easy section. Let's take a look at a few more solutions that could be helpful:
+#+begin_src clojure
+;; mapcat sounds like it might be useful to us
+((fn fltn2 [coll]
+   (mapcat #(if (sequential? %)
+              (fltn2 %)
+              [%])
+           coll))
+ '((1 2) 3 [4 [5 6]]))
+;; => (1 2 3 4 5 6)
+
+;; really interesting solution, the if statement provides a branch point
+;; for either recursion or wrapping in a vector since concat needs a collection
+;; in any of it's arguments
+
+;; (mapcat (mapcat [1] [2]) (mapcat [3] (mapcat [4] (mapcat [5] [6]))))
+;; then
+(concat (concat [1] [2] (concat [3] (concat [4] (concat [5] [6])))))
+;; => (1 2 3 4 5 6)
+
+;; another variation of this theme only mapcat's the nested sequences and
+;; wraps all others in a vector:
+((fn fltn3 [coll]
+   (if (coll? coll)
+     (mapcat fltn3 coll)
+     [coll]))
+ ;; => ((1 2 (3)) 4)
+ '((((:a)))) )
+;; => (:a)
+
+;; same idea fewer calls to mapcat
+
+;; the last solution I will review for now is one involving tree-seq which of
+;; course is interesting because I had to look it up. This is mostly all from
+;; clojuredocs.org/tree-seq
+
+(tree-seq next rest '(:A (:B (:D) (:E)) (:C (:F))))
+;; => (
+;; (:A (:B (:D) (:E)) (:C (:F)))
+;; (:B (:D) (:E))
+;; (:D)
+;; (:E)
+;; (:C (:F))
+;; (:F)
+;; )
+
+;; Each node is a number or a seq,
+;; so branch?==seq? and children==identity
+;;
+;;     .
+;;    / \
+;;   .   .
+;;  /|\  |
+;; 1 2 . 4
+;;     |
+;;     3
+;;
+;; ... each sub-tree is serialized in depth-first order
+
+(tree-seq seq? identity '(1 2 (3 (4))))
+;; => ((1 2 (3 (4))) 1 2 (3 (4)) 3 (4) 4)
+(tree-seq seq? seq '(1 2 (3 (4))))
+;; => ((1 2 (3 (4))) 1 2 (3 (4)) 3 (4) 4)
+(tree-seq sequential? seq '(1 2 (3 (4))))
+;; => ((1 2 (3 (4))) 1 2 (3 (4)) 3 (4) 4)
+
+(tree-seq odd? seq '(1 2 (3 (4))))
+;; This processing ...
+;; (sequential? '(1 2 (3 (4)))) ;; returns true ... -> (1 2 (3 (4))) <--- !!!
+;; (sequential? 1)              ;; returns false ... -> 1
+;; (sequential? 2)              ;; returns false ... -> 2
+;; (sequential? '(3 (4))        ;; returns true  ... -> (3 (4))     <--- !!!
+;; (sequential? 3)              ;; returns false ... -> 3
+;; (sequential? '(4))           ;; returns true  ... -> (4)         <--- !!!
+;; (sequential? 4)              ;; return false  ... -> 4
+
+(sequential? '(1 2 (3 (4))));; => true
+(seq  '(1 2 (3 (4))));; => (1 2 (3 (4)))
+
+;; ok so here is the solution in question:
+(#(filter (complement sequential?)
+          (rest (tree-seq sequential? seq %))) '((1 2) 3 [4 [5 6]]))
+;; => (1 2 3 4 5 6)
+
+;; let's try to break it down. first we know that the inner tree-seq
+;; portion is going to walk the nodes of the tree and give us a
+;; collection of those nodes.
+
+(tree-seq sequential? seq '((1 2) 3 [4 [5 6]]))
+;; => (((1 2) 3 [4 [5 6]]) (1 2) 1 2 3 [4 [5 6]] 4 [5 6] 5 6)
+;; => (
+;; ((1 2) 3 [4 [5 6]])
+;; (1 2)
+;; 1
+;; 2
+;; 3
+;; [4 [5 6]]
+;; 4
+;; [5 6]
+;; 5
+;; 6
+;; )
+
+;; what does rest do?
+(rest '((1 2 (3 (4))) 1 2 (3 (4)) 3 (4) 4));; => (1 2 (3 (4)) 3 (4) 4)
+;; rest escapes one layer of nested collection, which I'm not sure we need
+
+(#(filter (complement sequential?)
+          (tree-seq sequential? seq %)) '((1 2) 3 [4 [5 6]]))
+;; => (1 2 3 4 5 6)
+
+;; just as I suspected, the filter "not"-sequential? scoops up all the leaf
+;; nodes and drops all the collection nodes, brilliant!
+
+(filter (complement sequential?)
+        '(((1 2) 3 [4 [5 6]]) (1 2) 1 2 3 [4 [5 6]] 4 [5 6] 5 6))
+;; => (1 2 3 4 5 6)
+
+;; tree-seq is clearly very powerful and along the way I've learned about
+;; next and rest
+#+end_src
+
 ** [[https://www.4clojure.com/problem/29][#29 Get the caps]]
    See string, think regex
 #+begin_src clojure
