@@ -256,7 +256,7 @@ So here are the honest solutions
 ;; "racecar" ->  '(\r \a \c \e \c \a \r)
 #+end_src
 :
-** [[https://www.4clojure.com/problem/28][Flatten a Sequence]]
+** [[https://www.4clojure.com/problem/28][#28 Flatten a Sequence]]
    Without using flatten...the first time around this problem gave me hell:
 #+begin_src clojure
 ;; I'm thinking of using cond with recursion built in to each condition.
@@ -540,7 +540,7 @@ For some reason I don't like using sort like this, probably a sign that there's 
    The brilliant apply step shown above is referenced from a [[https://github.com/morrxy/4clojure/blob/master/problem/33.Replicate%20a%20Sequence.clj][solution]] online and here it is helpful to see apply as a way to push conj into the the following sequence, e.g. without the apply the output is ~[(:a :a :a :a) (:b :b :b :b)]~, and apply can be seen as applying conj to the inner parens ~(conj :a :a :a :a)~ rather than ~(conj (:a :a :a :a))~
    In the same link above is the solution ~(fn [s n] (mapcat (partial repeat n) s))~ highlights a really perfect use of ~partial~ (functional thinking in action!) and introduces me to ~mapcat~. I now wonder if I can apply the ~partial~ function to more of my solutions as a way of practicing a kind of encapsulation without writing separate helper functions (a kind of internal encapsulation).
 
-** [[https://www.4clojure.com/problem/34][Implement Range]]
+** [[https://www.4clojure.com/problem/34][#34 Implement Range]]
    Without using range of course, my first thought of course is a loop based solution but now that this is my second time attempting this let's see what I've learned:
 #+begin_src clojure
 ;; here is my first naive approach, I'm surprised that it's a recursive
@@ -699,6 +699,40 @@ There are a few other solutions that warrant a closer look:
 ;; dropping it!
 #+end_src
 
+** [[https://www.4clojure.com/problem/42][#42 Factorial Fun]]
+   Write a function that compute the factorial of the given number n:
+#+begin_src clojure
+;; thinking to use repeat here
+(apply * (take 3 (repeat 3)))
+;; => 27
+;; which is nice but this is an exponential not a factorial!
+
+;; what we need is the almighty range
+(range 1 4);; => (1 2)
+;; => (1 2 3)
+
+(#(apply * (range 1 (inc %))) 3)
+;; => 6
+
+;; as simple as it gets, I like this solution for it's readability and directness
+;; my first solution kind of amazes me in that it uses iterate...kinda proud of my
+;; naive self!
+
+((fn [n] (reduce * (take n (iterate inc 1)))) 3)
+;; => 6
+
+;; the following is a "poor mans" range!
+(take 3 (iterate inc 1))
+;; => (1 2 3)
+
+;; a more convoluted recursive solution:
+(#((fn fac [n r]
+     (if (= n 1)
+       r
+       (fac (dec n) (* n r)))) % 1) 3)
+;; => 6
+#+end_src
+These seem to be the major solutions that are out there! Onward!
 ** [[https://www.4clojure.com/problem/45][#45 Intro to Iterate]]
    What I thought iterate would output is ~(4 4 4 4 4)~, that is, just taking the function and making an infinite sequence out of it. What it actually outputs is ~(1 4 7 10 13)~ which is x, f(x), f(f(x), f(f(f(x))), etc. This very much looks like a versatile variation of ~reduce~ and I wonder if previous examples could be solved with it (for example #33 Replicate a sequence).
    A quick first attempt to see what iterate would look like gives me the impression that since iterate returns the first input as a result that this will either have to be stripped away, buuuut it does make me think of the fibonacci sequence where the initial values are a good candidate for the output
