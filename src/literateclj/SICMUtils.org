@@ -1,0 +1,1 @@
+* Notes and an attempt to work out some of the problems from [[https://tgvaughan.github.io/sicm/][Structure and Interpretation of Classical Mechanics]] using [[https://github.com/sicmutils/sicmutils][SICMUtils]]
