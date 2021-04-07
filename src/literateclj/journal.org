@@ -604,6 +604,115 @@ The symbol %& is so elegant here because it scoops up all the individual element
 ;; => 8
 #+end_src
 While the first solution is shorter, I prefer the legibility of this last function, it really shows that reduce as a sieve that can scoop up and take certain values, plus bonus on using %& again!
+** [[https://www.4clojure.com/problem/39][#39 Interleave 2 Sequences]]
+   My first gut solution to this (after seeing it again) is:
+#+begin_src clojure
+#(mapcat list %1 %2)
+
+;; it is such relief that this just pops out after reviewing as I've been
+;; doing, and really verifies to me that this process is beneficial to my
+;; understanding of both functional programming and clojure as well, yay!
+
+;; my first naive solution was not as clear but does show my loop based mental
+;; model of such a problem (loops solve everything right?!)
+((fn [c1 c2]
+   (loop [[x    & xs]      c1
+          [y         & ys] c2
+          result           []]
+     (if (or (nil? x) (nil? y))
+       result
+       (recur xs ys (conj result x y))))) [:a :b :c] [1 2 3])
+;; => [:a 1 :b 2 :c 3]
+;; absolutely nothing wrong with this, it's simple and legible but also
+;; less succinct, it's almost like the difference between this answer and them
+;; first is like the first is kind of like slang, we are demonstrating a
+;; comfort with many of the more complex inner workings of the functional
+;; programming dialect in discreet chunks where as the loop solution is a
+;; meticulous piece by piece ordeal which doesn't flow in "spoken clojure"
+;; if that makes any sense...because of the energy saved from a conversational
+;; point of view we might take that energy to progress further, hmmm.
+
+;; another quick solution because it expresses a common pattern
+#(flatten (map list %1 %2))
+;; this is just another example of seeing flatten outside of a map just means
+;; mapcat
+#+end_src
+Two more solutions that I'd like to explore:
+#+begin_src clojure
+;; here is another recursive solution that is very clear
+((fn l [a b & r]
+   (if (or (nil? (first a)) (nil? (first b)))
+     (flatten r)
+     (l (rest a) (rest b) (conj (vec r) (first a) (first b))))) [:a :b :c] [1 2 3])
+;; => (:a 1 :b 2 :c 3)
+;; I am starting to build an intuition that when using conj in a recursive way
+;; I often see that an extra variable is carried along to accumulate the results
+;; this seems analogous to the loop solution I presented above
+;; I also think that the ~vec~ function is very powerful since it can make a
+;; an empty collection from nil e.g. (vec nil) is [] also (vec [1 2 3]) is just
+;; [1 2 3] so it does not take an existing vector and wrap it into a nested vector
+;; It is also interesting in this case that the destructuring lists &r here which
+;; already makes whatever is left into a collection, but in this case it is
+;; required because it makes the 3rd argument optional and so the recursive
+;; function can use it when it calls itself...I do very much doubt that this
+;; sort of pattern is a generally acceptable pattern for a function that is
+;; exposed as a part of a public api as it exposes some of the internals of the
+;; function to a perhaps unsuspecting developer...style guide?
+
+;; the final solution I wish to investigate is the following:
+((fn [& xs]
+   (let [n (->> xs (map #(count %)) (apply min))]
+     (reduce (fn [acc x] (concat acc (map #(nth % x) xs)))
+             [] (range n))))
+ [:a :b :c] [1 2 3])
+;; => (:a 1 :b 2 :c 3)
+;; my interest here is the introduction of the thread-last operator ->>
+;; which takes the arg that follows it and applies it as the last argument
+;; of whatever function pipeline follows it, but first let's explore how two
+;; vectors are scooped up in the &xs destructuring
+
+((fn [& xs] (str xs)) [:a :b :c] [1 2 3])
+;; => "([:a :b :c] [1 2 3])"
+;; just as suspected but good to see
+;; so given a seq of two vectors lets see what ->> works
+
+(let [n (->> '([:a :b :c] [1 2 3])
+             (map #(count %))
+             (apply min))]
+  n)
+;; => 3
+
+;; a lot is going on here! first the map form is our first transducer in
+;; the wild, and the clojure docs describe transducers as:
+;; composable algorithmic transformations that are independent of context
+;; as they specify the essence of the transformation in terms of an individual
+;; element. Nice! (like a stream transformer in other languages -- sounds
+;; "reactive" as well)
+
+;; so the thread-last operator sets us up to use a pipeline and our first
+;; part of that pipeline is a map form transducer
+(map #(count %) '([:a :b :c] [1 2 3]))
+;; => (3 3)
+
+;; ah ok, so after the apply min step n is trying to give us the shortest of the
+;; two collections, I imagine that if one longer and one shorter collection
+;; are given, the longer collection is simply truncated, that's clear now!
+
+;; finally we reduce
+(reduce (fn [acc x] (concat acc (map #(nth % x) '([:a :b :c] [1 2 3]) )))
+        [] (range 3))
+;; => (:a 1 :b 2 :c 3)
+
+;; so for every index created by range from (0 1 2) we map over each collection
+;; (not limited to two can be any number) and we use concat to take index 0 for
+;; example of both collections into one collection. This is in some ways very
+;; advanced because of the steps taken to get to the solution, however once
+;; broken apart into simpler portions the power of this kind of thinking almost
+;; leaves a kind of discovery fiction of bread crumbs that one can imagine
+;; e.g. the possibility of deducing the thought process taken to get to the
+;; final answer is available in the individual chunks of the code, like
+;; thought-legos!
+#+end_src
 ** [[https://www.4clojure.com/problem/40][#40 Interpose a Sequence]]
    Without the function interpose, here is my first attempt. Still some effort involved to remember that any time I see a function applied to each index in a seq then the first thought should be map. This seems like there could be a more elegant solution, in particular I'm not fond of the ~flatten~ seems like there could be a simpler answer
 #+begin_src clojure
