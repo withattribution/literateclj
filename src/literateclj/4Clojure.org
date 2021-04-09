@@ -1145,6 +1145,47 @@ Looking at other solutions:
 
 ;; what a messy but somehow gratifying solution!
 #+end_src
+Cringing a bit now that I've seen how short some of the answers are...lots to learn let's jump in!
+#+begin_src clojure
+;; so it turns out that with some light googling there is this thing
+;; called the Euclidean Algorithm and it takes the problem of GCD I just
+;; solved in a rather cumbersome method and makes it about as simple as
+;; basic recursion can be...this maybe would have saved some time but
+;; as always I don't regret the knowledge I've gained from working it out
+;; the dumb way first!
+
+((fn [x y]
+   (loop [x x y y r (rem x y)]
+     (if (= 0 r)
+       y
+       (recur y r (rem y r))))) 1023 858)
+
+;; in short Euclid proved that GCD(270,192) = GCD(192,78) = ...
+;; repeat and take the number just before zero or 1 (since every number
+;; is ultimately divisible by 1)
+(rem 270 192)
+;; => 78
+(rem 192 78)
+;; => 36
+(rem 78 36)
+;; => 6
+(rem 36 6)
+;; => 0
+;; so the GCD here is 6
+
+;; almost every answer is similar to the above recursion except this caught my eye
+
+(fn [x y]
+  (apply max
+         (filter #(= 0 (mod x %) (mod y %))
+                 (range 1 (+ 1 (max (/ x 2) (/ y 2)))))))
+
+(range 1 (+ 1 (max (/ 10 2) (/ 5 2))));; => (1 2 3 4 5)
+;; this range seems to imply that with two numbers the maximum range you have
+;; to check is if x or y in this case divide evenly into each other. Then you
+;; check that range and filter out and take the max of the common factors from a
+;; much shorter list ... so euclid still wins but this is nice to see as well.
+#+end_src
 
 ** [[https://www.4clojure.com/problem/83][#83 A half truth]]
    Function should return true if some but not all of the params are true, all false is false, all true is false, some true is true, sounds like I should investigate ~and~ : and looks stops on false and returns that value, if and makes it to the end it returns the final value. Or stops on true evaluations and returns the value or makes it to the end and returns the last value.
