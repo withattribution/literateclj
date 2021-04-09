@@ -1004,6 +1004,147 @@ Looking at other solutions:
 #+end_src
 
 ** [[https://www.4clojure.com/problem/66][#66 GCD]]
+   This is the kind of mathematical problem that I'm sure becomes very complex when performance is considered. My goal here is to outline a naive solution first seeing this as a demonstration of understanding modulo based arithmetic. First I think it is quite easy to build up a collection of even divisors for a number, but the second problem of finding the maximum number between two collections that is shared by the collection is new and interesting to me:
+#+begin_src clojure
+;; first let's familiarize ourself with the outputs of mod
+(mod 4 3)
+;; => 1
+
+;; my favorite way of thinking about modulo math is the clock face
+;; the above 4 mod 3 can be visualized by a clock face with numbers
+;; a mod n where n is defined as the range 0 -> n - 1, so in our case
+;; 0 .. 2
+;;
+;;   [imagine a clock face below]
+;;               0
+;;            2     1
+;;
+;; we see if we take 4 steps clockwise along this clock face
+;; 0->1 step 1
+;; 1->2 step 2
+;; 2->0 step 3
+;; 0->1 step 4 and our answer of 4 mod 3 is 1
+;;
+;; so what if we gather up all the numbers in a range from 1 to N
+;; that give us mod 0, these would be the integer divisors of N
+;;
+;; then for many numbers we could compare that collection and build up
+;; yet another collection of numbers that match for those, thereby giving
+;; us the numbers that are the shared divisors for the given numbers
+;;
+;; then we simply take the max value of that final collection
+;;
+;; so then how do we compare two collections and only take the items that
+;; match between the two?
+;;
+;; I suppose a terribly inefficient method would be ~doseq~ where we cycle one seq
+;; through the other over and over and add the matching items into a new seq
+(doseq [a [1 2 4 8]
+        b [1 2 11 22]]
+  (filter (fn [bx] (= a bx)) (vector b)))
+;; => nil
+
+;; so doseq's documentation mentions that the return value is always nil
+;; which indicates that doseq should be used to cause side effects, aka
+;; manipulate external variables which is not what we're trying to learn more
+;; about here...next
+
+(set [1 4 2 3 4])
+;; => #{1 4 3 2}
+
+((complement set) (concat [1 2 4 8] [1 2 11 22]))
+;; => false
+
+;; and complement is not going to give me a poor-man's intersection, complement
+;; will only flip the boolean return value of a function ... trial by fire
+;; learning edition
+;; => #{1 4 3 2}
+
+;; i bet a hacked way of double looping is with a reduce and a map
+
+(reduce (fn [acc val]
+          (into acc (keep (fn [x] (if (= val x) x)) [1 2 11 22])))
+        []
+        [1 2 4 8])
+;; => [1 2]
+
+;; this is short but not very descriptive to me, I know that keep will
+;; filter all nils from a collection and the if-statement returns nil for any
+;; non-match building up a sequence, keep filters that of all nils keeping only
+;; the matching items from the seq...I'm certain there is a better way but ok
+;; for this particular learning stage I suppose.
+
+;; ok so we need to build up all the divisors that divide evenly into a number
+;; and then "intersect them" and take the max
+
+((fn [& nums]
+   (let [ds (keep (fn [x]
+                    (reduce (fn [acc val] (if (= (mod x val) 0)
+                                            (conj acc val)
+                                            (conj acc nil)))
+                            []
+                            (range 1 (inc x)))) nums)]
+     ds))
+ 10 5)
+;; => ([1 2 nil nil 5 nil nil nil nil 10] [1 nil nil nil 5])
+
+;; nope. the keep needs to be the inner loop
+
+((fn [n1]
+   (keep (fn [x]
+           (if (= (mod n1 x) 0)
+             x
+             nil))
+         (range 1 (inc n1)))
+   ) 10 )
+;; => (1 2 5 10)
+
+((fn [& nums]
+   (map (fn [z]
+          (keep (fn [x]
+                  (if (= (mod z x) 0)
+                    x
+                    nil))
+                (range 1 (inc z))))
+        nums)
+   ) 10 5)
+;; => ((1 2 5 10) (1 5))
+
+;; ok here's my first let statement (eye roll)
+
+((fn [& nums]
+   (let [ds (sort-by count #(> %1 %2) (map (fn [z]
+                                             (keep (fn [x]
+                                                     (if (= (mod z x) 0)
+                                                       x
+                                                       nil))
+                                                   (range 1 (inc z))))
+                                           nums))]
+     ds)) 5 10)
+;; => ((1 2 5 10) (1 5))
+
+;; first time using a comparator to reverse the normal low -> high of sort
+;; this is beyond getting messy but so close now I think!
+
+((fn [& nums]
+   (let [ds (sort-by count #(> %1 %2)
+                     (map (fn [z]
+                            (keep (fn [x]
+                                    (if (= (mod z x) 0)
+                                      x
+                                      nil))
+                                  (range 1 (inc z))))
+                          nums))]
+     (apply max (reduce (fn [acc val]
+                          (into acc (keep (fn [x] (if (= val x)
+                                                    x
+                                                    nil)) (first ds))))
+                        []
+                        (second ds))))) 5 10)
+;; => 5
+
+;; what a messy but somehow gratifying solution!
+#+end_src
 
 ** [[https://www.4clojure.com/problem/83][#83 A half truth]]
    Function should return true if some but not all of the params are true, all false is false, all true is false, some true is true, sounds like I should investigate ~and~ : and looks stops on false and returns that value, if and makes it to the end it returns the final value. Or stops on true evaluations and returns the value or makes it to the end and returns the last value.
