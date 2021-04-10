@@ -1186,6 +1186,69 @@ Cringing a bit now that I've seen how short some of the answers are...lots to le
 ;; check that range and filter out and take the max of the common factors from a
 ;; much shorter list ... so euclid still wins but this is nice to see as well.
 #+end_src
+** [[https://www.4clojure.com/problem/81][#81 Set Intersection]]
+   Write a function which returns the intersection of two sets, the common items between 2 collections. I think I inadvertently already did this in the process of solving #66 GCD...I know there  must be a more functional way tho, let's see if I can find it:
+#+begin_src clojure
+;; off the top of my head I can think of something like using ~frequencies~ to
+;; find and then take the keys of the frequency that return something greater than
+;; 1...this would give me more experience using maps which is currently lacking
+
+(#(frequencies (concat %1 %2)) #{0 1 2 3} #{2 3 4 5})
+;; => {0 1, 1 1, 3 2, 2 2, 4 1, 5 1}
+
+(keys (filter #(< 1 (second %)) {:a 1 :b 2 :c 3}))
+;; => (:b :c)
+;; => ([:b 2] [:c 3])
+
+(#(keys (filter
+          (fn [v] (< 1 (second v)))
+          (frequencies (concat %1 %2))))
+  #{0 1 2 3} #{2 3 4 5})
+;; => ([3 2] [2 2]) -> then take just keys to produce below answer
+;; => (3 2)
+
+;; while looking at the filter documentation I discovered that filter can
+;; take a set as a predicate with another set as the input to return the
+;; the intersection of the two sets! I'm guessing that exposing this feature
+;; is exactly the purpose of this exercise!
+
+(#(filter %1 %2) #{0 1 2 3} #{2 3 4 5}) ;; => (3 2)
+
+;; such an elegant emergent result!
+#+end_src
+There are a couple of solutions I'd like to document here:
+#+begin_src clojure
+;; a common solution involves using ~contains?~ which is powerful and
+;; straight forward as long as one realizes that its designed to be used with
+;; key-value based collections, maps and sets are an example of such colls
+;; contains? can also be used with numberically indexed collections like vectors
+;; and arrays but it will simply return the boolean status of the existence or non
+;; existence of any value at that index, or more specifically if that index
+;; exists within the range of indexes of the collection
+
+((fn [s1 s2] (set (filter #(contains? s2 %) s1))) #{0 1 2 3} #{4 3 9 2})
+;; => #{3 2}
+
+;; this next solution I've included because I think it represents the same kind of
+;; abusive relationship that I had with reduce in the solution to #66 GCD
+;; reduce is used to build up a collection of items that I'd like dropped from
+;; an already existing sequence...this mess of a reduce fn is familiar
+;; to be clear, I'm not saying this is wrong, but I am saying that when an
+;; existing sequence exists perhaps it is simpler to think about filter as
+;; "building up the seq" rather than reduce
+
+((fn [a b] (reduce #(if (contains? a %2) (conj %1 %2) %1) #{} b))
+ #{1 2 0 7} #{6 2 7 3})
+;; => #{3 2}
+
+;; at first I thought that this above solution would not work because in the
+;; if-branch, the false branch replaces the reduce accumulator with #{} buuut
+;; what actually happens is that %1 and %2 start off referring to #{} and b
+;; but then %1 specifically references the accumulator that changes with
+;; each successive iteration! Not obvious to me at first, so %1 becomes the
+;; accumulator and the false branch simply says "pass the accumulated result
+;; back without any additions". I think I needed this magic in my #66 solution.
+#+end_src
 
 ** [[https://www.4clojure.com/problem/83][#83 A half truth]]
    Function should return true if some but not all of the params are true, all false is false, all true is false, some true is true, sounds like I should investigate ~and~ : and looks stops on false and returns that value, if and makes it to the end it returns the final value. Or stops on true evaluations and returns the value or makes it to the end and returns the last value.
