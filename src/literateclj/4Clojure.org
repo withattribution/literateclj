@@ -1003,6 +1003,12 @@ Looking at other solutions:
 ((fn [ks vs] (reduce merge (map (fn [k v] {k v}) ks vs))) [:a :b :c] [1 2 3]);; => {:a 1, :b 2, :c 3}
 #+end_src
 
+** [[https://www.4clojure.com/problem/62][#62 Implement Iterate]]
+   I find ~iterate~ to be a very fascinating function. Implementing it will surely be instructive:
+#+begin_src clojure
+()
+#+end_src
+
 ** [[https://www.4clojure.com/problem/66][#66 GCD]]
    This is the kind of mathematical problem that I'm sure becomes very complex when performance is considered. My goal here is to outline a naive solution first seeing this as a demonstration of understanding modulo based arithmetic. First I think it is quite easy to build up a collection of even divisors for a number, but the second problem of finding the maximum number between two collections that is shared by the collection is new and interesting to me:
 #+begin_src clojure
@@ -1249,7 +1255,6 @@ There are a couple of solutions I'd like to document here:
 ;; accumulator and the false branch simply says "pass the accumulated result
 ;; back without any additions". I think I needed this magic in my #66 solution.
 #+end_src
-
 ** [[https://www.4clojure.com/problem/83][#83 A half truth]]
    Function should return true if some but not all of the params are true, all false is false, all true is false, some true is true, sounds like I should investigate ~and~ : and looks stops on false and returns that value, if and makes it to the end it returns the final value. Or stops on true evaluations and returns the value or makes it to the end and returns the last value.
    More succinctly put, and continues with true, or continues with false
@@ -1307,4 +1312,18 @@ Some of the difficulties that I had were that I had to remember how to take mult
 ;; which is exactly how some works so in this particular case I believe my answer
 ;; with not-every? is even more clear than this example and shorter without them
 ;; extra true? evaluation -- party!
+#+end_src
+
+** [[https://www.4clojure.com/problem/107][#107 Simple Closures]]
+   This is a very simple example of lexical scope, that is, scope defined internally to a function or inside a let form for example. In this example we are asked to define a function that returns a function, thereby we can see that passing in args in one scope are closed-over and passed on in a sense to the inner function.
+#+begin_src clojure
+(((fn [n] (fn [x] (apply * (repeat n x))))  8) 2)
+;; => 256
+
+;; here we see that n still has a valid value inside the returned function
+;; it has been captured into the inner scope. This problem is not really about
+;; using various different methods to achieve simpler and clearer results (as
+;; I have taken from previous challenges) but instead to concretely demonstrate
+;; what scope looks like possibly in a way that such simple concept can be
+;; taken and applied to other problems
 #+end_src
