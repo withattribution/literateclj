@@ -1006,7 +1006,53 @@ Looking at other solutions:
 ** [[https://www.4clojure.com/problem/62][#62 Implement Iterate]]
    I find ~iterate~ to be a very fascinating function. Implementing it will surely be instructive:
 #+begin_src clojure
-()
+(take 5 ((fn iter [f v]
+           (lazy-seq (cons v (iter f (f v))))) #(* 2 %) 1));; => 2
+;; => (1 2 4 8 16)
+
+;; when take is exhausted the last step is (cons v '()) so it all
+;; returns back a list a values. I'm not entirely sure what lazy-seq is
+;; doing but I forget to add it in my first attempt and it errored out in
+;; and integer overflow, so I know in a hand-wavey manner that lazy-seq
+;; only evaluates as needed I just don't know the finer details of how that's
+;; accomplished, but for now, iterate looks so damn simple: apply the function
+;; shift the output value into the input value and repeat!
+#+end_src
+There was only one other solution that I found which was different to my own:
+#+begin_src clojure
+;; my answer felt simple and clear, this looks like an alien cave drawing to me!
+;; fun!
+(fn [f x] (reductions #(%2 %1) x (repeat f)))
+
+;; first reductions takes a function, an init value and a collection
+;; so we much be building a collection of f with repeat...what does that look
+;; like?
+
+(take 5 (repeat #(* 2 %)))
+;; => (#function[user/eval7513/fn--7514] #function[user/eval7513/fn--7514] #function[user/eval7513/fn--7514] #function[user/eval7513/fn--7514] #function[user/eval7513/fn--7514])
+
+;; so this works exactly as expected although a collection of fns is not something
+;; that I think about so that's nice to see
+
+;; next reductions says it returns a lazy-sequence, so check, we def need that
+;; and it also returns the intermediate values of the reduction. So my
+;; understanding of reductions is that it's what you use to see what
+;; your reduce function is doing, like a utility function to "see" what the
+;; compiled code is doing to a collection but here we see that if you need
+;; a lazy sequence of the intermediate steps reductions is the goto!
+
+;; so again it's like reduce but instead of spitting out the final answer of
+;; everything reduced down we get every answer of each reduce step in a sequence!
+;; cool!
+
+(take 5 ((fn [f v] (reductions #(%2 %1) v (repeat f))) #(* 2 %) 1))
+;; => (1 2 4 8 16)
+
+;; it is still absolutely mind-bendy where the function in the reductions call
+;; is taking the collection producing function ~(repeat f)~ and ~v~ as the
+;; function for the reduction, a bit inception-y and a sign that I still don't
+;; have my recursion-sea-legs as I'm not sure I have the confidence that I would
+;; think to do that
 #+end_src
 
 ** [[https://www.4clojure.com/problem/66][#66 GCD]]
