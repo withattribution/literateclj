@@ -1029,7 +1029,13 @@ There was only one other solution that I found which was different to my own:
 ;; like?
 
 (take 5 (repeat #(* 2 %)))
-;; => (#function[user/eval7513/fn--7514] #function[user/eval7513/fn--7514] #function[user/eval7513/fn--7514] #function[user/eval7513/fn--7514] #function[user/eval7513/fn--7514])
+;; => (
+;; #function[user/eval7513/fn--7514]
+;; #function[user/eval7513/fn--7514]
+;; #function[user/eval7513/fn--7514]
+;; #function[user/eval7513/fn--7514]
+;; #function[user/eval7513/fn--7514]
+;; )
 
 ;; so this works exactly as expected although a collection of fns is not something
 ;; that I think about so that's nice to see
@@ -1038,7 +1044,7 @@ There was only one other solution that I found which was different to my own:
 ;; and it also returns the intermediate values of the reduction. So my
 ;; understanding of reductions is that it's what you use to see what
 ;; your reduce function is doing, like a utility function to "see" what the
-;; compiled code is doing to a collection but here we see that if you need
+;; compiler is doing to a collection but here we see that if you need
 ;; a lazy sequence of the intermediate steps reductions is the goto!
 
 ;; so again it's like reduce but instead of spitting out the final answer of
@@ -1048,11 +1054,116 @@ There was only one other solution that I found which was different to my own:
 (take 5 ((fn [f v] (reductions #(%2 %1) v (repeat f))) #(* 2 %) 1))
 ;; => (1 2 4 8 16)
 
+;; funny how the compiler will not let us nest anonymous functions but here
+;; we have some kind of nesting so something special must be happening
+;; however if we take out the shorthand ~#~ we still get the expected results
+
+(take 5 ((fn [f v] (reductions (fn [acc x] (x acc)) v (repeat f))) #(* 2 %) 1))
+;; => (1 2 4 8 16)
+
 ;; it is still absolutely mind-bendy where the function in the reductions call
 ;; is taking the collection producing function ~(repeat f)~ and ~v~ as the
 ;; function for the reduction, a bit inception-y and a sign that I still don't
 ;; have my recursion-sea-legs as I'm not sure I have the confidence that I would
 ;; think to do that
+
+;; let's see if we can get a better idea of what is happening by taking it one step
+;; at a time:
+
+;; a note from the clojuredocs.org shows us that reductions can be thought of as
+;; the following for loop:
+(defn my-reduce
+  [op init coll]
+  (for [n (range (count coll))]
+    (reduce op init (take (inc n) coll))))
+
+(my-reduce + 1 [1 2 3])
+;; => (2 4 7)
+
+;; (reduce op  init (take 1 coll)) (+ 1 1) ;=> 2
+;; (reduce op (take 2 coll)) (+ 1 1 2) ;=> 4
+;; (reduce op (take 3 coll)) (+ 1 1 2 3) ;=> 7
+
+;; so for our example we have an expanding list of functions
+
+;; take 1 : fn = (#(*2 %)) and v = 1
+
+;; because reduce is happening in the background %1 refers to the accumulator
+;; and %2 is the next value in the sequence being reduced upon
+
+;; take 2 : fn = (#(* 2 %) #(* 2 %)) and
+;; I think the only way to understand this is to think of the % in the first
+;; fn as slurping in the second fn so that we get a nesting of the functions
+;; clearly something is confusing me about this step so perhaps I can break it
+;; apart to understand it
+
+(take 5 (lazy-seq (repeat (#(* 2 %) 1))))
+;; => (2 2 2 2 2)
+;; so here we're missing a step where the operator * is not gathering
+;; together the results of each step, so this is not a good approximation of
+;; what reductions is doing
+
+;; it seems like it has to be the following:
+;; when the initial value is given and an empty collection then the first result
+;; is returned, when the initial value is threaded into a collection of functions
+;; the values are built up one iteration at a time
+(* 1) ;; => 1
+(* 2 1) ;; => 2
+(* 2 (* 2 1)) ;; => 4
+(* 2 (* 2 (* 2 1))) ;; => 8
+(* 2 (* 2 (* 2 (* 2 1)))) ;; => 16
+
+
+;; this is similar but however the initial state of 1 is unreachable in this
+;; example
+(defn itera [arg] (* 2 arg))
+(itera (itera (itera (itera 1))))
+;; => 16
+
+;; here is another attempt at this approximation using comp to feed the
+;; initial value through a kind of pipeline of functions
+((comp (fn [x] (* 2 x)) (fn [x] (* 2 x))) 1)
+;; => 4
+
+;; finally giving up and looking at the source of reductions shows that we are
+;; using cons-recursion which plainly shows how we get the initial value first
+;; and then the recursion lifts the function to the next call and so on
+;; however this still does not completely satisfy my curiosity with the
+;; collection of functions solution.
+;;(cons init
+;;      (lazy-seq
+;;        (when-let [s (seq coll)]
+;;          (reductions f (f init (first s)) (rest s)))))
+
+
+((fn [v] (reductions
+           (fn [acc x] (x acc))
+           v
+           [#(* 2 %) #(* 2 %) #(* 2 %)]
+           )
+   ) 1)
+;; => (1 2 4 8)
+
+;; reduce is like a window function right? so it takes the initial value and the
+;; first value in the collection, this is exactly what I have not been
+;; understanding! so it should look like this
+
+;; ok so take create a seq of 5 anonymous functions then reductions goes to
+;; work on them. What is not happening that was confusing me is that the
+;; list of functions isn't dynamically growing with each step, like take 1
+;; represents repeat creating a seq of one anon fn, take 2 is two anon funcs in a
+;; seq etc. Take operates 5 times and reductions operates on a list of 5 fns
+;; then reduce happens with the same reduce logic however the intermediate outputs
+;; are given for each step and each step's result is carried forward!
+
+;; 1st step just produces 1 is this how regular reduce works?
+(reduce * 1 []) ;; => 1 ... cool, it does, learned something about reduce!
+;; 2nd (#(* 2 %) 1) ;=> 2
+;; 3rd (#(* 2 %) 2) ;=> 4
+;; 4th (#(* 2 %) 4) ;=> 8 and so on
+
+;; so as usual I was making it more complicated but in the process I discovered
+;; more that I thought I understood but didn't...and now I do...sorta
 #+end_src
 
 ** [[https://www.4clojure.com/problem/66][#66 GCD]]
