@@ -1057,6 +1057,7 @@ There was only one other solution that I found which was different to my own:
 ;; funny how the compiler will not let us nest anonymous functions but here
 ;; we have some kind of nesting so something special must be happening
 ;; however if we take out the shorthand ~#~ we still get the expected results
+;; [spoiler alert, nothing special is happening because nesting isn't happening]
 
 (take 5 ((fn [f v] (reductions (fn [acc x] (x acc)) v (repeat f))) #(* 2 %) 1))
 ;; => (1 2 4 8 16)
