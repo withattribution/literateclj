@@ -1471,6 +1471,22 @@ Some of the difficulties that I had were that I had to remember how to take mult
 ;; extra true? evaluation -- party!
 #+end_src
 
+** [[https://www.4clojure.com/problem/90][#90 Cartesian Product]]
+   Cartesian products are the combination of the value of the first index in set one with all values of set 2, then the second index of set 1 with all the values of set 2 etc, this is a for loop or a doseq:
+#+begin_src clojure
+(#(into #{} (for [x %1
+                  y %2] [x y])) #{1 2 3} #{4 5})
+;; => #{[2 5] [3 4] [1 4] [1 5] [2 4] [3 5]}
+
+;; so of course I'm curious about if I could use doseq here and what are the
+;; differences, and the difference is that the sequence is not returned with
+;; doseq, so it would be for performing some side-effect on every value of
+;; the sequence produced (like saving in a db or printing) and for returns the
+;; sequence that was generated...also for is lazy and doseq is "eager" or
+;; executes all values at once
+#+end_src
+Looking at the solutions doesn't reveal any answers that surprised me except that I should mention that most other answers simply called ~set~ on the final solution rather than ~into~ which makes sense.
+
 ** [[https://www.4clojure.com/problem/107][#107 Simple Closures]]
    This is a very simple example of lexical scope, that is, scope defined internally to a function or inside a let form for example. In this example we are asked to define a function that returns a function, thereby we can see that passing in args in one scope are closed-over and passed on in a sense to the inner function.
 #+begin_src clojure
