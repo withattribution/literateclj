@@ -1487,6 +1487,60 @@ Some of the difficulties that I had were that I had to remember how to take mult
 #+end_src
 Looking at the solutions doesn't reveal any answers that surprised me except that I should mention that most other answers simply called ~set~ on the final solution rather than ~into~ which makes sense.
 
+** [[https://www.4clojure.com/problem/99][#99 Product Digits]]
+   Write a function that multiplies two numbers and then returns the results as a sequence of the individual digits 1 * 10 = 10 but we want [1 0]
+#+begin_src clojure
+
+(seq (str (* 9 99)));; => (\8 \9 \1)
+(int \8);; => 56
+(int \0);; => 48
+(- 56 48);; => 8
+(#(map (fn [x] (- (int x) (int \0))) (seq (str (* %1 %2)))) 9 99)
+;; => (8 9 1)
+
+;; I got as far as converting from int to str and had to look up an answer
+;; to learn that char 8 minus char 0 will give us the integer value back
+;; this is likely the kind of thing that I will always have to look up
+#+end_src
+This problem required some outside understanding of how an ascii char table is guaranteed to be laid out:
+Because the C standard guarantees that the characters 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 are always in this order regarding their numerical character code. So, if you subtract the char code of '0' from another digit, it will give its position relative to 0, which is its value...
+
+From the C standard, Section 5.2.1 Character sets:
+
+In both the source and execution basic character sets, the value of each character after 0 in the above list of decimal digits shall be one greater than the value of the previous
+
+This at least makes some logical sense but I wasn't excited that this answer depended on that, however similar answers used parseint which I will cover below:
+#+begin_src clojure
+;; I'm very shaky on my understanding of Java interop, so I'm not
+;; really sure what's really available
+
+((fn [a b]
+   (map #(Integer/parseInt (str %)) (str (* a b)))) 9 99)
+;; => (8 9 1)
+
+(type (str (* 9 99)))
+;; => java.lang.String
+;; so the first result returns a string but then when passing it in to %
+;; it is a char which is incompatible with parseInt hence the extra conversion
+;; not super elegant to me but hey...
+
+
+;; using read-string takes a string but then somehow tries to return a precise
+;; type, this must be why it can be used with eval or to execute code
+(type (read-string "5.5"))
+;; => java.lang.Double
+(+ 1 (read-string "5.5"))
+;; => 6.5
+
+;; but again, a string is a sequence of chars so we have to reconvert it back to
+;; a string for read-string but otherwise this avoids having to remember that the
+;; ascii table is ordered incrementally for numbers and so number math and ascii
+;; value math aligns...instead with read-string we simply get an integer back
+((fn [x y]
+   (map #(read-string (str %))
+        (str (* x y)))) 9 99)
+;; => (8 9 1)
+#+end_src
 ** [[https://www.4clojure.com/problem/107][#107 Simple Closures]]
    This is a very simple example of lexical scope, that is, scope defined internally to a function or inside a let form for example. In this example we are asked to define a function that returns a function, thereby we can see that passing in args in one scope are closed-over and passed on in a sense to the inner function.
 #+begin_src clojure
