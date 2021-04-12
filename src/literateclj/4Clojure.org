@@ -1057,7 +1057,6 @@ There was only one other solution that I found which was different to my own:
 ;; funny how the compiler will not let us nest anonymous functions but here
 ;; we have some kind of nesting so something special must be happening
 ;; however if we take out the shorthand ~#~ we still get the expected results
-;; [spoiler alert, nothing special is happening because nesting isn't happening]
 
 (take 5 ((fn [f v] (reductions (fn [acc x] (x acc)) v (repeat f))) #(* 2 %) 1))
 ;; => (1 2 4 8 16)
@@ -1154,7 +1153,7 @@ There was only one other solution that I found which was different to my own:
 ;; list of functions isn't dynamically growing with each step, like take 1
 ;; represents repeat creating a seq of one anon fn, take 2 is two anon funcs in a
 ;; seq etc. Take operates 5 times and reductions operates on a list of 5 fns
-;; then reduce happens with the same reduce logic however the intermediate outputs
+;; then reduce happens with the same reduce logic however the intermediate output
 ;; are given for each step and each step's result is carried forward!
 
 ;; 1st step just produces 1 is this how regular reduce works?
@@ -1484,4 +1483,36 @@ Some of the difficulties that I had were that I had to remember how to take mult
 ;; I have taken from previous challenges) but instead to concretely demonstrate
 ;; what scope looks like possibly in a way that such simple concept can be
 ;; taken and applied to other problems
+#+end_src
+
+** [[https://www.4clojure.com/problem/166][#166 Comparisons]]
+   This problem states that the comparison operations < > != = etc can derived from a single operation excluding = and !=. We're asked to write a function that takes 3 args, the less than operator for the data, and two items to compare and then return a keyword describing the relationship between the items namely x and y. If
+   x = y -> :eq
+   x > y -> :gt
+   x < y -> :lt
+My first guess is this could be done by testing various outputs of the function by swapping the items under comparison and returning a keyword...something like cond or condp?
+#+begin_src clojure
+;; since the f passed in is supposed to represent the less than for the items
+;; if we swap the items and compare the results we should be able to determine
+;; the relationship between x and y
+((fn [f x y]
+   (cond
+     (= true (and (= false (f x y)) (= false (f y x)))) :eq
+     (= true (f x y))                                   :lt
+     (= false (f x y))                                  :gt))
+ > 0 2)
+
+;; so the logic here is to provide a gateway test and then basically an
+;; either or test
+#+end_src
+One shorter answer, at least, exists
+#+begin_src clojure
+(fn compare [f x y]
+  (cond
+    (f x y) :lt
+    (f y x) :gt
+    :else   :eq
+    ))
+
+;; this is essentially my solution but loads clearer
 #+end_src
