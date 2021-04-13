@@ -1166,6 +1166,76 @@ There was only one other solution that I found which was different to my own:
 ;; more that I thought I understood but didn't...and now I do...sorta
 #+end_src
 
+** [[https://www.4clojure.com/problem/63][#63 Group a Sequence]]
+   Given a function f and a sequence s, write a function which returns a map with the keys being the values of f applied to each item in s and the value should be a vector of the corresponding times grouped by the return value of f in the order they appear in s. Without using group-by...hmmm
+#+begin_src clojure
+;; so assoc can be used to build a map but does it also add to the same key
+;; or add that key twice
+(assoc {:a 1} :a 2)
+;; => {:a 2}
+;; ok so we need something that doesn't overwrite the last value but instead
+;; adds to, like an upsert, perhaps rather than looking for something that does this
+;; let's consider understanding how to roll our own version, seems like there's more
+;; to learn through this kind of process
+
+;; so contains? is exactly what we would want in terms of checking if a key exists
+(contains? {:a [1]} :a)
+;; => true
+;; but we want the value so this is a possible branching situation
+((fn [f s]
+   (map (fn [x] (assoc {} (f x) [x])) s)) #(> % 5) [1 3 6 8])
+;; => ({false [1]} {false [3]} {true [6]} {true [8]})
+
+;; so it seems like ~merge-with~ allows us to define a function to determine how
+;; values are dealt with when there is overlap
+((fn [f s]
+   (apply merge-with (fn [m1 m2] (into m1 m2)) (map (fn [x] (assoc {} (f x) [x])) s))) #(> % 5) [1 3 6 8])
+;; => {false [1 3], true [6 8]}
+
+;; can be slightly simplified to:
+((fn [f s]
+   (apply merge-with into (map (fn [x] (assoc {} (f x) [x])) s))) #(> % 5) [1 3 6 8]);; => {false [1 3], true [6 8]}
+#+end_src
+There aren't a lot of alternative solutions to this problem that I have found. However let's discuss two:
+#+begin_src clojure
+;; here is one using reduce, which of course can be used to solve any problem ;)
+;; admittedly my understanding of maps in clojure especially the magic of their
+;; seeming duality as functions is really what is interesting to me in this
+;; solution.
+
+;; So keep in mind that either a map or a keyword can be treated as a
+;; function
+({:a 1} :a) ;; => 1
+(:a {:a 1}) ;; => 1
+;; but if our map is not keyed by keywords we'd better stick to map-first as
+;; a map-function!
+({false 1} false);; => 1
+(false {false 1}) ;; error!
+
+((fn [f s]
+   (reduce
+     (fn [acc x]
+       (let [k (f x) v (acc k)] ; a map is an fn which returns val or nil
+         (if (nil? v) ; here we check if key k already exists
+           (assoc acc k [x]) ; if no key already just add (wrap in vector)
+           (assoc acc k (conj v x))))) ; otherwise build a vector of values in key
+     {}
+     s)) #(> % 5) [1 3 6 8])
+;; => {false [1 3], true [6 8]}
+
+;; the next solution is nice because it is almost the problems statement in english
+;; but in code
+((fn [f s]
+   (apply merge-with concat (map #(hash-map (f %1) [%1]) s))) #(> % 5) [1 3 6 8])
+;; => {true (6 8), false (1 3)}
+
+(#(map (fn [x] (hash-map (%1 x) [x])) %2) #(> % 5) [1 3 6 8]);; => (1 3 6 8)
+;; => ({false [1]} {false [3]} {true [6]} {true [8]})
+
+;; just make a map out of f and sequence and then merge that map using concat when
+;; there is a merge overlap!
+#+end_src
+
 ** [[https://www.4clojure.com/problem/66][#66 GCD]]
    This is the kind of mathematical problem that I'm sure becomes very complex when performance is considered. My goal here is to outline a naive solution first seeing this as a demonstration of understanding modulo based arithmetic. First I think it is quite easy to build up a collection of even divisors for a number, but the second problem of finding the maximum number between two collections that is shared by the collection is new and interesting to me:
 #+begin_src clojure
