@@ -1692,6 +1692,28 @@ This at least makes some logical sense but I wasn't excited that this answer dep
 ;; taken and applied to other problems
 #+end_src
 
+** [[https://www.4clojure.com/problem/122][#122 Read a Binary Number]]
+   Take a string of numbers and compute the number where the bits are calculated as powers of 2: so 1001 = 9 because 2^3 + 0 + 0 + 2^0 = 8 + 1. So maybe a way to approach this is with map-index and reversing the string then summing up:
+#+begin_src clojure
+(#(apply + (map-indexed (fn [idx x] (if (= x \1)
+                                      (apply * (repeat idx 2))
+                                      0))
+                        (reverse %))) "10101010101")
+;; => 1365
+
+;; was nice to have already dealt with converting chars to ints even though this
+;; didn't come up here it did still give me a little confidence that I wouldn't
+;; get stuck on something like that. This was all very clear to me and went rather
+;; smoothly ¯\_(ツ)_/¯
+#+end_src
+There is an even clearer solution that involves java interop...but of course since I don't know basic java this wouldn't pop out at me so it's worth documenting here:
+#+begin_src clojure
+(#(Integer/parseInt % 2) "1001")
+;; => 9
+;; this works because the second argument of parseInt takes the radix of the
+;; number, so that parsing can also be a conversion to a number system, like
+;; for instance hexadecimal or radix 16
+#+end_src
 ** [[https://www.4clojure.com/problem/143][#143 Dot Product]]
    Map can take two collections and combines each index from c1 & c2 in ascending order idx1,ixd2...idxN. I'm guessing that's all we really need here:
 #+begin_src clojure
