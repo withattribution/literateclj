@@ -1692,6 +1692,13 @@ This at least makes some logical sense but I wasn't excited that this answer dep
 ;; taken and applied to other problems
 #+end_src
 
+** [[https://www.4clojure.com/problem/143][#143 Dot Product]]
+   Map can take two collections and combines each index from c1 & c2 in ascending order idx1,ixd2...idxN. I'm guessing that's all we really need here:
+#+begin_src clojure
+(#(apply + (map * %1 %2)) [1 2 3] [4 5 6])
+;; => 32
+#+end_src
+Interested to see any solutions that might show alternative methods...and I didn't find any. Very rare!
 ** [[https://www.4clojure.com/problem/166][#166 Comparisons]]
    This problem states that the comparison operations < > != = etc can derived from a single operation excluding = and !=. We're asked to write a function that takes 3 args, the less than operator for the data, and two items to compare and then return a keyword describing the relationship between the items namely x and y. If
    x = y -> :eq
