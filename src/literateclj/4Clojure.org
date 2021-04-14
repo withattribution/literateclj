@@ -1214,13 +1214,13 @@ There aren't a lot of alternative solutions to this problem that I have found. H
 
 ((fn [f s]
    (reduce
-     (fn [acc x]
-       (let [k (f x) v (acc k)] ; a map is an fn which returns val or nil
-         (if (nil? v) ; here we check if key k already exists
-           (assoc acc k [x]) ; if no key already just add (wrap in vector)
-           (assoc acc k (conj v x))))) ; otherwise build a vector of values in key
-     {}
-     s)) #(> % 5) [1 3 6 8])
+    (fn [acc x]
+      (let [k (f x) v (acc k)] ; a map is an fn which returns val or nil
+        (if (nil? v) ; here we check if key k already exists
+          (assoc acc k [x]) ; if no key already just add (wrap in vector)
+          (assoc acc k (conj v x))))) ; otherwise build a vector of values in key
+    {}
+    s)) #(> % 5) [1 3 6 8])
 ;; => {false [1 3], true [6 8]}
 
 ;; the next solution is nice because it is almost the problems statement in english
@@ -1235,7 +1235,6 @@ There aren't a lot of alternative solutions to this problem that I have found. H
 ;; just make a map out of f and sequence and then merge that map using concat when
 ;; there is a merge overlap!
 #+end_src
-
 ** [[https://www.4clojure.com/problem/66][#66 GCD]]
    This is the kind of mathematical problem that I'm sure becomes very complex when performance is considered. My goal here is to outline a naive solution first seeing this as a demonstration of understanding modulo based arithmetic. First I think it is quite easy to build up a collection of even divisors for a number, but the second problem of finding the maximum number between two collections that is shared by the collection is new and interesting to me:
 #+begin_src clojure
@@ -1557,6 +1556,74 @@ Some of the difficulties that I had were that I had to remember how to take mult
 #+end_src
 Looking at the solutions doesn't reveal any answers that surprised me except that I should mention that most other answers simply called ~set~ on the final solution rather than ~into~ which makes sense.
 
+** [[https://www.4clojure.com/problem/88][#88 Symmetric Difference]]
+   The symmetric difference is the set of items that belong to one but not both of two sets:
+#+begin_src clojure
+;; ok so calling set on a collection removes duplicate, only takes said unique
+;; values
+(set [1 2 3 3 5 2 5])
+;; => #{1 3 2 5}
+;; so what we want here are items that are only in one set but not the other
+;; one interesting idea is that using a set as a filter's predicate gives us
+;; the intersection of two sets (which is something I was looking for in #66 GCD)
+(filter #{1 2 3} #{1 2 4 6})
+;; => (1 2)
+;; but what we would have wanted from the above is #{3 4 6}, so we want to eliminate
+;; (1 2) from both and return what remains
+(filter (complement #{1 2 3}) #{1 2 4 6})
+;; => (4 6)
+;; this is kind of lucky for me to stumble upon this, here we are treating
+;; #{1 2 3} as a function that returns true if it matches and flipping that
+;; to be the opposite, but this is still not the answer because 3 is not considered
+;; part of the collection we are filtering, instead it is part of the function
+;; we are using to determine what to filter, we can change that by computing
+;; the intersection of the two sets and using that as the function for both
+((fn [s1 s2]
+   (set (filter
+          (complement (set (filter s1 s2)))
+          (concat s1 s2))))
+ #{1 2 3} #{1 2 4 6})
+;; => #{4 6 3}
+;; this is rather cool to me, filter on two sets gives me the intersection of the
+;; two sets, then making that result into a set allows me to use the resulting
+;; intersection to filter the concatenation of both sets, thereby giving me the
+;; so called symmetric difference -- my brain is spaghetti!
+
+
+#+end_src
+After reviewing some other solutions I was shocked that almost all of them used the core set functions while I've been limiting myself to only the direct clojure core namespace and no other sibling or child namespaces:
+#+begin_src clojure
+;; most solutions looked like some variation of the following:
+
+((fn [s1 s2]
+   (into
+     (clojure.set/difference s1 s2)
+     (clojure.set/difference s2 s1))) #{1 2 3} #{1 2 4 6})
+;; => #{4 6 3}
+
+;; or
+
+#(clojure.set/union
+   (clojure.set/difference %1 %2)
+   (clojure.set/difference %2 %1))
+
+;; which are undoubtedly clearer and perhaps even more correct as my solution seems
+;; to use a number of tricks (but I'm glad of course to know of them!)
+
+;; this serves to help me understand that I can be a little less strict about
+;; what "clojure core" libraries are available for these problems at the very least
+;; in the interest of examining more of the basic building blocks of clojure
+
+;; the final solution I'll look into is another that avoids using the set namespace
+
+((fn [s1 s2] (into (apply disj s1 s2) (apply disj s2 s1))) #{1 2 3} #{1 2 4 6})
+;; => #{4 6 3}
+
+;; at first glance I thought disj was dissoc however it seems that disj is
+;; specific to hashed sets and dissoc is specific to maps, otherwise I'm
+;; guessing that drop and rest etc are the functions used to trim vectors and
+;; other vector-like sequences
+#+end_src
 ** [[https://www.4clojure.com/problem/99][#99 Product Digits]]
    Write a function that multiplies two numbers and then returns the results as a sequence of the individual digits 1 * 10 = 10 but we want [1 0]
 #+begin_src clojure
