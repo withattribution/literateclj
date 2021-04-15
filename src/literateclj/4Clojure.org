@@ -1624,6 +1624,23 @@ After reviewing some other solutions I was shocked that almost all of them used 
 ;; guessing that drop and rest etc are the functions used to trim vectors and
 ;; other vector-like sequences
 #+end_src
+** [[https://www.4clojure.com/problem/97][#97 Pascal's Triangle]]
+   Write a function which returns the nth row of pascals triangle, since the wikipedia page is given I will wholeheartedly look up what I need from there! Looks like we can calculate the row n and columns k with:
+   (n k) = (n k-1) x (n + 1 - k / k ). This took me a second to realize that what the (n k-1) is referring to the previous answer and (n 0) = 1, so the first answer is always 1 it kind of an identity and the fact that it is a surprise just shows that I don't fully understand it yet but hey, starting somewhere. Then one simply goes through from left to right where n is constant since we are calculating a row and key increments until k = n...I think I have enough to attempt a solution:
+#+begin_src clojure
+;; so we are given an n as the row index or multiple rows and we want to return
+;; the values for the columns of each row wrapped in a vector or sequence probably
+;; the row contains n columns as well, so row one has 1 column, row 11 has 11
+((fn [n] (reduce (fn [acc k] (if (or (= k 0) (= k (dec n)))
+                               (conj acc 1)
+                               (conj acc (* (/ (- n k) k) (last acc)))))
+                 []
+                 (range n)))
+ 5)
+;; => [1 4 6N 4N 1]
+#+end_src
+I wanted to add that this video helped me to understand what the binomial (n 0) = 1 means [[https://www.youtube.com/watch?v=_hrN4rVCOfI][Intuitive connection between binomial expansion and combinatorics | Algebra II | Khan Academy]]
+
 ** [[https://www.4clojure.com/problem/99][#99 Product Digits]]
    Write a function that multiplies two numbers and then returns the results as a sequence of the individual digits 1 * 10 = 10 but we want [1 0]
 #+begin_src clojure
@@ -1804,7 +1821,6 @@ I think my answer is in nice in that reduce can solve anything...not really but 
 ;; fn out of - and 86 and so on and so on. I don't think I would have fully
 ;; appreciated the use of partial here without this walk through, cheers!
 #+end_src
-
 ** [[https://www.4clojure.com/problem/143][#143 Dot Product]]
    Map can take two collections and combines each index from c1 & c2 in ascending order idx1,ixd2...idxN. I'm guessing that's all we really need here:
 #+begin_src clojure
