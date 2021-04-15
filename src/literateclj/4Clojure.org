@@ -1743,11 +1743,67 @@ There is an even clearer solution that involves java interop...but of course sin
 ;; in the 4Clojure browser test but x equals Class or java.lang.Class is the
 ;; correct answer and I'm not super sure what I'm supposed to get from this?
 #+end_src
+** [[https://www.4clojure.com/problem/135][#135 Infix Calculator]]
+   Write a higher order function that allows infix math assuming no precedence and only left to right calculation
+#+begin_src clojure
+;; my first thought is to split this into two collections one that is the
+;; math functions and the other that are the numbers but now I'm wondering if
+;; I can just reduce this
+(#(reduce (fn [acc x] (x acc)) (first %&) %&) 2 + 5)
+;; errors out trying to use a number as a function...
 
-#+RESULTS:
-| class clojure.lang.Compiler$CompilerException |
-| clojure.core$class                            |
-| java.lang.Class                               |
+;; so that doesn't work but what if I grouped the sequence into
+;; operand operator operand groups? so the sequence would look something like:
+;; given
+(38 + 48 - 2 / 2)
+(38 + 48) ;; operate and take result as r
+(r - 2) ;; operate take accumulated r
+(r / 2) ;; fin return r
+;; or maybe groups of two and use reduce since there is already an accumulator
+(partition 2 (drop 1 '(38 + 48 - 2 / 2)))
+;; => ((+ 48) (- 2) (/ 2))
+
+;; ok I think we can work with this but it's kinda messy
+;; but the accumulator should always be a number
+(#(reduce
+    (fn [acc v] ((first v) acc (second v)))
+    (first %&)
+    (partition 2 (drop 1 %&))) 38 + 48 - 2 / 2)
+;; => 42
+;; I don't think I'd be bragging about this one "making infix possible"
+;; especially considering the lack of precedence
+#+end_src
+I think my answer is in nice in that reduce can solve anything...not really but mayyyyybeee? Anyhow let's look at a solution that is arguably more idiomatic:
+#+begin_src clojure
+;; I find this solution more satisfying at first glance because I struggle to
+;; use partial, plus shorter is better right?
+((fn calc [& s]
+   (reduce
+     #(if (fn? %1) ; here the if statement lets us reorder the items if one is an fn
+        (%1 %2) ; if accum is an fn no prob just use fn on %2
+        (partial %2 %1)) ; however if not, switch order -- is partial necessary?
+     identity ; identity passes the first item in the list like a bootstrap stage
+     s)) ; and s is making a sequence out of the input
+ 38 + 48 - 2 / 2)
+
+;; it seems that partial is very much necessary here because if we step through
+;; we get something like this
+;; is identity an fn -> true, apply identity to 38 returns 38 in accumulator
+;; %1 then is 38 and %2 is +
+;; we could switch the fn plus to the first part but (+ 38);; => 38
+;; thereby we would be leaving out the 48 and loosing a reference to +
+;; so without partial this step would return 38 again! uh oh!
+;; that's valid our crash comes next when we have 38 as %1 and 48 as %2
+;; we cannot number a number, there is no function we've lost the ref to +
+;; so it is really really nice to have something like partial which returns
+;; a function!
+;; so our 2nd step with partial we have 38 is %1 and + is %2, and
+;; partial + 38 returns a function to the accumulator, so cool!
+;; the next step %1 is an fn and %2 is 48 so we simply combine the two and
+;; place 86 into the accumulator and we repeat, this time making a partial
+;; fn out of - and 86 and so on and so on. I don't think I would have fully
+;; appreciated the use of partial here without this walk through, cheers!
+#+end_src
 
 ** [[https://www.4clojure.com/problem/143][#143 Dot Product]]
    Map can take two collections and combines each index from c1 & c2 in ascending order idx1,ixd2...idxN. I'm guessing that's all we really need here:
