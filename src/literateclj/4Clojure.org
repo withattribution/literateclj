@@ -1714,6 +1714,41 @@ There is an even clearer solution that involves java interop...but of course sin
 ;; number, so that parsing can also be a conversion to a number system, like
 ;; for instance hexadecimal or radix 16
 #+end_src
+** [[https://www.4clojure.com/problem/126][#126 Through the looking Class]]
+   I'm not even sure what I'm looking at here:
+#+begin_src clojure
+;; the problem is to satisfy the following:
+(let [x java.lang.Class]
+  (and (= (class x) x) x))
+;; => java.lang.Class
+
+;; so my first question is what is class and what does it return?
+;; and as per the docs it says that it returns the class of an object
+;; which I assume means the java based class for the under written java object
+
+;; my first thought which was:
+(class class)
+;; => clojure.core$class
+(class (class class))
+;; => java.lang.Class
+
+;; I'm not sure...what the class of something equals itself?
+(= (class ,,,) ,,,)
+;; oh ok
+(class java.lang.Class);; => java.lang.Class
+;; but trying java.lang.Class gives an error so just using
+(class Class);; => java.lang.Class
+
+;; not entirely sure what java.lang.Class works here in emacs but not
+;; in the 4Clojure browser test but x equals Class or java.lang.Class is the
+;; correct answer and I'm not super sure what I'm supposed to get from this?
+#+end_src
+
+#+RESULTS:
+| class clojure.lang.Compiler$CompilerException |
+| clojure.core$class                            |
+| java.lang.Class                               |
+
 ** [[https://www.4clojure.com/problem/143][#143 Dot Product]]
    Map can take two collections and combines each index from c1 & c2 in ascending order idx1,ixd2...idxN. I'm guessing that's all we really need here:
 #+begin_src clojure
@@ -1722,7 +1757,6 @@ There is an even clearer solution that involves java interop...but of course sin
 #+end_src
 Interested to see any solutions that might show alternative methods...and I didn't find any. Very rare!
 ** [[https://www.4clojure.com/problem/157][#157 Indexing Sequences]]
-
    Transform a sequence into a sequence of pairs containing the original elements along with their index...seems like a map-index kinda problem:
 #+begin_src clojure
 (#(map-indexed (fn [idx x] [x idx]) %) [:a :b :c])
