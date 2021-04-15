@@ -1025,7 +1025,7 @@ There was only one other solution that I found which was different to my own:
 (fn [f x] (reductions #(%2 %1) x (repeat f)))
 
 ;; first reductions takes a function, an init value and a collection
-;; so we much be building a collection of f with repeat...what does that look
+;; so we must be building a collection of f with repeat...what does that look
 ;; like?
 
 (take 5 (repeat #(* 2 %)))
@@ -1721,6 +1721,21 @@ There is an even clearer solution that involves java interop...but of course sin
 ;; => 32
 #+end_src
 Interested to see any solutions that might show alternative methods...and I didn't find any. Very rare!
+** [[https://www.4clojure.com/problem/157][#157 Indexing Sequences]]
+
+   Transform a sequence into a sequence of pairs containing the original elements along with their index...seems like a map-index kinda problem:
+#+begin_src clojure
+(#(map-indexed (fn [idx x] [x idx]) %) [:a :b :c])
+;; => ([:a 0] [:b 1] [:c 2])
+
+;; there was only one other solution that I wanted to document:
+
+(#(map vector % (range)) [:a :b :c]);; => ([:a 0] [:b 1] [:c 2])
+
+;; which is nice just because it shows just how easy it is to manipulate
+;; the generation of an infinite sequence!
+#+end_src
+
 ** [[https://www.4clojure.com/problem/166][#166 Comparisons]]
    This problem states that the comparison operations < > != = etc can derived from a single operation excluding = and !=. We're asked to write a function that takes 3 args, the less than operator for the data, and two items to compare and then return a keyword describing the relationship between the items namely x and y. If
    x = y -> :eq
