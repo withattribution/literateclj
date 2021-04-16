@@ -1638,8 +1638,94 @@ Looking at the solutions doesn't reveal any answers that surprised me except tha
                  (range n)))
  5)
 ;; => [1 4 6N 4N 1]
+(type (* (/ 3 2) 4));; => 3/2
+;; => clojure.lang.BigInt
+;; => 6N
+;; so that clears up why the N is there to indicate that it's not a java.lang.Long
+;; but more specifically a clojure.lang.BigInt
+;; when numbers are followed by an M that indicates that its a java.math.BigDecimal
+(type 1M);; => java.math.BigDecimal
+;; I would say my answer is very straight forward and somewhat linear in terms of
+;; breaking things apart...easy to parse for a beginner I would hope
 #+end_src
 I wanted to add that this video helped me to understand what the binomial (n 0) = 1 means [[https://www.youtube.com/watch?v=_hrN4rVCOfI][Intuitive connection between binomial expansion and combinatorics | Algebra II | Khan Academy]]
+
+A few of the solutions are more elegant than my own including one that uses a macro which  I'm excited to review:
+#+begin_src clojure
+;; this looks very similar to my answer but does not have the if statement
+;; so it's worth taking a minute to unpack that design
+(fn [i]
+  (reduce
+    #(conj %1 (* (last %1) (/ (- i %2) %2)))
+    [1] (range 1 i)))
+;; given an i = 5 we see that having a [1] as the first arg
+;; already skips the step of needing the first branch of my answers if statement
+;; by simply allowing the 1 to always be the first item in the collection, a
+;; totally valid assumption. After seeing this I immediately removed the
+;; second case of my solutions or statement and found that the last boundary
+;; is calculated correctly...so that's how we get rid of the if statement entirely
+;; assume the 1 is there by definition (which mathematically it is and it makes
+;; sense now)
+;; the rest of the answer is identical to my own and the binomial equation given
+;; in wikipedia although using %1 %2 instead of n and k for the variable names
+;; is more confusing for someone coming in without knowing the equation
+
+;; the final solution I'd like to review is one with an inline macro which will
+;; be the first time I am picking apart a macro!
+
+(fn [n]
+  (last (take n (iterate
+                  #(map +' `(0 ~@%) `(~@% 0))
+                  [1]))))
+
+;; not sure what +' means: similar to + but supports arbitrary precision
+;; so the following taken from clojuredocs explains more
+(class 1)
+;; => java.lang.Long
+
+(+ 1 Long/MAX_VALUE)
+;; => java.lang.ArithmeticException: integer overflow
+;;        Numbers.java:1388 clojure.lang.Numbers.throwIntOverflow
+;;        Numbers.java:1687 clojure.lang.Numbers.add
+
+(+' 1 Long/MAX_VALUE)
+;; => 9223372036854775808N
+
+(class (+' 1 Long/MAX_VALUE))
+;; => clojure.lang.BigInt
+
+;; after experimenting with the solution without +' and simply + the answer
+;; still worked but +' seems to be saying, go ahead and throw huge numbers at
+;; me, I'm ready!
+
+;; then we have two syntax quotes around forms indicating that the two forms
+;; `(0 ~@%) and `(~@% 0) will not be evaluated but instead sent as forms
+;; however the Unquoting Splice indicates that we expect a collection
+;; to be passed in and the collection will be spliced into the quoted result
+;; so this is fancy let's break it down
+;; iterate returns the input first so the first is [1]
+;; the second output is the f(x) which would look something like:
+(map + '(0 1) '(1 0)) ;; => (1 1)
+;; building on this
+(#(map + `(0 ~@%) `(~@% 0)) [1]);; => (1 1)
+(#(map + `(0 ~@%) `(~@% 0)) [1 1]);; => (1 2 1)
+(#(map + `(0 ~@%) `(~@% 0)) [1 2 1]);; => (1 3 3 1)
+(#(map + `(0 ~@%) `(~@% 0)) [1 3 3 1]);; => (1 4 6 4 1)
+;; I see! this is exactly how the general pascal triangle equation works
+;; in a visual way, with zeros that aren't written on the outer edges of the
+;; triangle. One way to compute a row for example the row below the [1 1] level
+;; is to imagine that the row contains two zeros so it is [0 1 1 0], then for the
+;; row below we would:
+;; add idx 0 + idx 1 of the row to get 0 + 1 = 1
+;; add idx 1 + idx 2 of the row to get 1 + 1 = 2
+;; add idx 2 + idx 3 of the row to get 1 + 0 = 1
+
+;; this solution is super elegant, hats of to user https://gist.github.com/SegFaultAX damn!
+
+;; this also builds some intuition on how to know when to use iterate
+;; if you can build up the solution by constantly feeding the results of a
+;; single function back to itself, wow this is cool!
+#+end_src
 
 ** [[https://www.4clojure.com/problem/99][#99 Product Digits]]
    Write a function that multiplies two numbers and then returns the results as a sequence of the individual digits 1 * 10 = 10 but we want [1 0]
