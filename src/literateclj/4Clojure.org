@@ -1624,6 +1624,78 @@ After reviewing some other solutions I was shocked that almost all of them used 
 #+end_src
 Looking at the solutions doesn't reveal any answers that surprised me except that I should mention that most other answers simply called ~set~ on the final solution rather than ~into~ which makes sense.
 
+** [[https://www.4clojure.com/problem/95][#95 To Tree or Not to Tree]]
+   Write a predicate which checks whether or not a given sequence represents a binary tree. Each node in the tree must have a left child and a right child. Running through a visual check of the tests shows that one tricky part of this is that each node must have either two children or none which caught me out for a brief moment. I believe this is called a full tree. We can start with a naive assumption that the total count of a sequence must be 3 to satisfy the binary-ness of the problem and also make sure that if there is a nil that both children are nil could tree-seq work?
+#+begin_src clojure
+(def tt [1 [2 [3 [4 false nil] nil] nil] nil])
+
+(tree-seq sequential? identity tt)
+;; => (
+;;[1 [2 [3 [4 false nil] nil] nil] nil]
+;;1
+;;[2 [3 [4 false nil] nil] nil]
+;;2
+;;[3 [4 false nil] nil]
+;;3
+;;[4 false nil]
+;; 4
+;;false
+;;nil
+;;nil
+;;nil
+;;nil
+;; )
+
+(tree-seq seq? seq [[1 2 [3]] [4]])
+;; => ([[1 2 [3]] [4]])
+(tree-seq sequential? seq [[1 2 [3]] [4]])
+;; => ([[1 2 [3]] [4]] [1 2 [3]] 1 2 [3] 3 [4] 4)
+
+;; so I'm a little blocked at this point, I'm wondering if thinking of the
+;; tree structure is making this too opaque, like I don't have the proper
+;; mental models to fluently navigate the necessary steps, perhaps it's better
+;; to approach with a basic recursive approach building up a collection of
+;; tuples that hold true/false and the count and the count of the solution and
+;; pass that collection through a predicate...the problem statement is to
+;; write just a predicate though, which is just a function that returns t/f
+;; right? Is there a simple predicate that doesn't necessarily transform
+;; the collection but still checks it's binary tree-ness?
+
+(count tt);; => 3
+;; ok there's a clue that I'm making this too difficult, we can count at all
+;; levels I believe with tree-seq
+
+;; revisiting tree-seq shows that it returns a lazy-seq of the nodes in a
+;; tree, via a depth first walk, meaning it descends if it has the chance
+;; it takes predicate branch? which examines and determines whether there are
+;; children that need to be included in the processing and children fn takes a
+;; single argument that selects or generates the children that are returned
+
+;; the tree structure is important if I am to consider that I need to check
+;; that both children are nil or the tree is not full, this I assume requires
+;; some semblance of the tree structure (I cannot just flatten and count
+;; to see if the number divides evenly by 3 and does not contain false)
+
+(fn [root]
+  (every? #(or (= nil %) (and (sequential? %) (= 3 (count %))))
+          (tree-seq #(and (sequential? %) (= 3 (count %)))
+                    rest root)))
+
+(tree-seq #(and (sequential? %) (= 3 (count %))) rest tt)
+;; => (
+;; [1 [2 [3 [4 false nil] nil] nil] nil]
+;; [2 [3 [4 false nil] nil] nil]
+;; [3 [4 false nil] nil]
+;; [4 false nil]
+;; false
+;; nil
+;; nil
+;; nil
+;; nil
+;; )
+
+;; gotta come back to #95 TODO
+#+end_src
 ** [[https://www.4clojure.com/problem/97][#97 Pascal's Triangle]]
    Write a function which returns the nth row of pascals triangle, since the wikipedia page is given I will wholeheartedly look up what I need from there! Looks like we can calculate the row n and columns k with:
    (n k) = (n k-1) x (n + 1 - k / k ). This took me a second to realize that what the (n k-1) is referring to the previous answer and (n 0) = 1, so the first answer is always 1 it kind of an identity and the fact that it is a surprise just shows that I don't fully understand it yet but hey, starting somewhere. Then one simply goes through from left to right where n is constant since we are calculating a row and key increments until k = n...I think I have enough to attempt a solution:
@@ -1793,6 +1865,30 @@ This at least makes some logical sense but I wasn't excited that this answer dep
 ;; I have taken from previous challenges) but instead to concretely demonstrate
 ;; what scope looks like possibly in a way that such simple concept can be
 ;; taken and applied to other problems
+#+end_src
+
+** [[https://www.4clojure.com/problem/118][#118 Reimplement Map]]
+   Given a function f and an input sequence s, return a lazy sequence of (f x) for each element x in s: first thought, cons recursion
+#+begin_src clojure
+((fn m [f s]
+   (when (not-empty s)
+     (cons (f (first s)) (m f (rest s))))) inc [2 3])
+
+;; this was fairly easy for me but most likely because by now I have been
+;; exposed to the map function for a good while. What was less clear is the
+;; discussion of
+;; a) what function to use that works on a collection and returns nil vs '()
+;; (next ());; => nil and (rest ());; => ()
+;; conversely taking from the front we have (first ());; => nil and
+;; (take 1 ());; => ()
+;; these differences really matter with recursion since the last step in cons
+;; needs to finish with an empty seq (not nil)
+;; and b) how to determine emptiness of a collection, using
+;; (not (empty? '())) ;; => false is frowned upon without explanation although
+;; some sources site redundancy in the macro expansion and performance and instead
+;; the recommendation is to use (seq '());; => nil which does not feel as readable
+;; because one has to simply remember that calling seq on an empty coll is nil
+;; which doesn't feel "emergent"
 #+end_src
 
 ** [[https://www.4clojure.com/problem/122][#122 Read a Binary Number]]
