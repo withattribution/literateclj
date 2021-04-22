@@ -1505,6 +1505,107 @@ There are a couple of solutions I'd like to document here:
 #+end_src
 So it turns out that using ~apply~ with ~and~ or any other macro is a big fail, I have marked this particular issue as something to figure out once I am more knowledgeable about how to write a macro and what is specifically happening but it is good to note this behaviour for now.
 However there may be more luck using ~every~ and ~not-every
+[EDIT]  [[https://lambdaisland.com/episodes/clojure-core-some#/transcript][SOURCE: Lambda Island Some Video]] found out that the idiom at least for ~apply or~ is ~some identity coll~ This is brilliant! However it's late and I'll have to come back and see if there is an equivalent idiom for ~apply and~ which I suspect is something maybe to do with ~remove~.
+
+So the basic idea behind using ~some indentity coll~ is that some acts as if it is an ~or~ statement. Let's think about this and what it would look like for and:
+#+begin_src clojure
+;; so we have this similarity between or and some
+(or (even? 5)
+    (even? 7)
+    (even? 8))
+;; => true
+
+;; if we have this same series of numbers as a collection we can use some
+(some even? [5 7 8])
+;; => true
+
+;; so is there something here that can be used with and since ~and~ and ~or~ are
+;; macros we cannot use them as ~apply and~ or ~apply or~, in other words what
+;; if we want to ~and~ an entire seq?
+
+;; so ~or~ returns the first truthy value ~and~ returns the first falsy value
+;; so when we are or-ing across a collection we are asking if anything here is
+;; truthy, conversely and-ing through a collection must mean we are asking are any
+;; of these values falsey?
+
+(and (even? 5)
+     (even? 7)
+     (even? 8))
+;; => false
+
+;; it's funny to me after years of programming I'm having to develop a feel for
+;; simple boolean logic but something is missing in my mental model so here goes:
+
+(and)
+;; => true
+(and 1)
+;; => 1
+(and 1 2 3)
+;; => 3
+(and nil nil 1 3)
+;; => nil
+
+(or)
+;; => nil
+(or 1)
+;; => 1
+(or  1 2 3)
+;; => 1
+(or nil nil 1 3)
+;; => 1
+
+;; so one metaphor that comes to mind is that ~and~ is like a null hypothesis
+;; in that you are trying to prove something is false while taking that it is
+;; true throughout the test (innocent until proven guilty -- which to me is a valid explanation of why (and) => true), and if at the end of
+;; your test you have not found a "contradiction" then the assertion is true
+;; (or you did not have enough data) so ~and~ is looking for contradictions and
+;; or is looking for validations is how I'm seeing it.
+
+;; I suppose one of the main difficulties for me is realizing that ~and~ and ~or~
+;; return the value when they evaluate to true or false instead of returning
+;; true or false, which by now seems incredibly powerful!
+
+;; so coming back to our attempt to figure out a way to use ~apply and~ and what
+;; that would mean we have the following discovery:
+
+;; looking into clojure.core we can see that not-any? is defined as:
+;; (def not-any? (comp not some)) which is neat, and the direct opposite of
+;; some but is assuming that ~or~ is the direct opposite of ~and~ and is that true?
+;; My first inclination is to suspect that ~or~ and ~and~ are not opposites because
+;; the opposite of (and) ;=> true does not equal (or) ;=> nil
+
+(not-any? even? [5 7 8])
+;; => false
+
+;; so while not-any? even? coll returns the opposite of some even? coll
+;; this absolutely would not be the equivalent to ~apply and~ which if we could
+;; just find opposite of some (which is not-any?) and cut and paste it into the
+;; previous idiom:
+
+(some identity [nil nil 1 3]);; => 1
+
+;; which does seem to produce the same results as ~apply or~ but not-any? does not
+
+(not-any? identity [nil nil 1 3]);; => false
+
+;; if the above were ~apply and~ the result would be nil hmmmm
+;; it seems again that my previous conception of ~and~ and ~or~ are booleans
+;; not-any? and not-every? are both booleans and so they cannot return a
+;; value
+
+;; i suppose I will have to ask if there is such an idiom as ~apply and~
+;; well maybe not...and the logic of wanting a return value when you are looking
+;; for some is that there are many versions of truthiness and only two versions
+;; of nil, so it may not be so interesting to know if the false value is nil or
+;; false literal but rather that the collection contains at least one of those
+;; literal values where as when looking at truthiness it's more valuable to
+;; get the value back since MOST values are truthy we most likely want to do
+;; something with the value and if a collection of values is false this can
+;; tell us something more concrete about the entire collection perhaps and
+;; if we want to investigate the specifics of that falsey value we have specific
+;; functions for that nil? and false?
+#+end_src
+
 #+begin_src clojure
 (every? identity '(false true false))
 ;; => false
@@ -1889,6 +1990,51 @@ This at least makes some logical sense but I wasn't excited that this answer dep
 ;; the recommendation is to use (seq '());; => nil which does not feel as readable
 ;; because one has to simply remember that calling seq on an empty coll is nil
 ;; which doesn't feel "emergent"
+#+end_src
+
+** [[https://www.4clojure.com/problem/120][#120 Sum of Square of digits]]
+   Write a function which takes a collection of integers as an argument and returns the count of how many elements are smaller than the sum of their squared component digits, so take a number, convert to string, filter to build up a list and return the count of that sequence:
+#+begin_src clojure
+((fn [c]
+   (count
+     (filter #(< (first %) (second %))
+             (partition 2
+                        (interleave c
+                                    (map
+                                      (fn [x] (reduce
+                                                #(let [s (- (int %2) (int \0))]
+                                                   (+ %1 (* s s)))
+                                                0
+                                                (str x))) c)))))) (range 30))
+;; => 19
+;; fighting through some kind of brain fog here, not the clearest work
+;; and feels like I've chiseled a solution out of rock, hard work!
+
+;; including a solution that is very similar but highlights that
+;; let can be used to define functions that apply within the context of
+;; the parent function. Obvious after having seen it firsthand.
+
+(fn sum-square [coll]
+  (let [digits     (fn [n] (map #(- (int %) 48) (str n)))
+        square     #(* % %)
+        sum-digits (fn [n] (reduce + (map square (digits n))))]
+    (count (filter #(< % (sum-digits %)) coll))))
+
+;; the function body for digits: (fn [n] (map #(- (int %) 48) (str n)))
+;; simply takes the char-digits and converts them to ints. Here I like
+;; my version better because it uses \0 and avoids the "what kind the magic
+;; number 48 is doing"
+
+;; square squares the number
+
+;; sum digits applies reduce + (which I always just see as apply +) to the
+;; square of all the numbers.
+
+;; finally we return the count as a result of the composition of all of the above
+;; with a filter to check if the number in question is less than the sum
+;; of the square of the digits
+
+;; thank goodness for let, it makes my solution look like a spaghetti monster!
 #+end_src
 
 ** [[https://www.4clojure.com/problem/122][#122 Read a Binary Number]]
