@@ -1797,6 +1797,9 @@ Looking at the solutions doesn't reveal any answers that surprised me except tha
 
 ;; gotta come back to #95 TODO
 #+end_src
+   TODO
+** [[https://www.4clojure.com/problem/96][#96 Beauty is Symmetry (binary trees)]]
+   TODO
 ** [[https://www.4clojure.com/problem/97][#97 Pascal's Triangle]]
    Write a function which returns the nth row of pascals triangle, since the wikipedia page is given I will wholeheartedly look up what I need from there! Looks like we can calculate the row n and columns k with:
    (n k) = (n k-1) x (n + 1 - k / k ). This took me a second to realize that what the (n k-1) is referring to the previous answer and (n 0) = 1, so the first answer is always 1 it kind of an identity and the fact that it is a surprise just shows that I don't fully understand it yet but hey, starting somewhere. Then one simply goes through from left to right where n is constant since we are calculating a row and key increments until k = n...I think I have enough to attempt a solution:
@@ -1954,6 +1957,8 @@ This at least makes some logical sense but I wasn't excited that this answer dep
         (str (* x y)))) 9 99)
 ;; => (8 9 1)
 #+end_src
+** [[https://www.4clojure.com/problem/100][#100 Least Common Multiple]]
+   TODO
 ** [[https://www.4clojure.com/problem/107][#107 Simple Closures]]
    This is a very simple example of lexical scope, that is, scope defined internally to a function or inside a let form for example. In this example we are asked to define a function that returns a function, thereby we can see that passing in args in one scope are closed-over and passed on in a sense to the inner function.
 #+begin_src clojure
@@ -2222,6 +2227,13 @@ I think my answer is in nice in that reduce can solve anything...not really but 
 ;; => 32
 #+end_src
 Interested to see any solutions that might show alternative methods...and I didn't find any. Very rare!
+** [[https://www.4clojure.com/problem/146][#146 Trees into Tables]]
+   TODO
+** [[https://www.4clojure.com/problem/147][#147 Pascal's Trapezoid]]
+   TODO
+   TODO
+** [[https://www.4clojure.com/problem/153][#153 Pairwise Disjoint Sets]]
+   TODO
 ** [[https://www.4clojure.com/problem/157][#157 Indexing Sequences]]
    Transform a sequence into a sequence of pairs containing the original elements along with their index...seems like a map-index kinda problem:
 #+begin_src clojure
