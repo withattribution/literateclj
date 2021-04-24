@@ -2088,6 +2088,72 @@ There is an even clearer solution that involves java interop...but of course sin
 ;; in the 4Clojure browser test but x equals Class or java.lang.Class is the
 ;; correct answer and I'm not super sure what I'm supposed to get from this?
 #+end_src
+** [[https://www.4clojure.com/problem/128][#128 Recognize Playing Cards]]
+   Cards are 0 (the 2) to 12 (the ace) and a string like "SJ" should be parsed into {:suit :spade :rank 9}. Use "T" instead of "10" so that all strings are only 2 chars.
+#+begin_src clojure
+;; so this seems like a matrix with suit as the columns and 0-12 as the rows
+;; so all the cards would look something like
+
+(let [cards (for [suit [:spade :heart :diamond :club]
+                  rank (into (into [] (range 2 10)) ["T" "J" "Q" "K" "A"])]
+              [suit rank])]
+  cards)
+
+;; 0 1 2 3 4 5 6 7 8 9 10 11 12
+;; 2 3 4 5 6 7 8 9 T J Q  K  A
+
+(zipmap (map (comp keyword str)
+             (filter #(not= \space %) (into (into [] (apply str (range 2 10))) ["T" "J" "Q" "K" "A"])))
+        (range 0 13))
+
+(zipmap [:S :H :D :C] [:spade :heart :diamond :club])
+
+(let [[a b] "SJ"] (str a " " b))
+;; => "S J"
+;; so we would want "2" -> 0 and "A" -> 12
+;; and "S" -> :spade
+
+;; so if we had two maps one with keyword to suit and keyword to rank
+;; that would be the problem solved, somehow I still want to be fancy tho
+
+((fn [[s r]]
+   (let [suit (zipmap [:S :H :D :C] [:spade :heart :diamond :club])
+         rank (zipmap (map (comp keyword str)
+                           (filter #(not= \space %) (into (into [] (apply str (range 2 10))) ["T" "J" "Q" "K" "A"])))
+                      (range 0 13))]
+     (into {:suit ((keyword (str s)) suit)} {:rank ((keyword (str r)) rank)}))) "SJ")
+#+end_src
+I was surprised to find that of the solutions I looked at none seemed to stray far from my version of the answer...curious I was expecting something more sophisticated but alas, simple works!
+#+begin_src clojure
+;; so the first is similar to my solution except that instead of using
+;; keywords the answer simple uses strings as keys, which simplifies the code
+
+(fn card [[s r]] ; similar destructuring takes suit and rank from strings
+  ;; suits and ranks also use strings instead of vectors of strings which
+  ;; notably complicated my solution
+  (let [suits (zipmap (map str "SHCD") [:spade :heart :club :diamond])
+        ranks (zipmap (map str (concat (range 2 10) "TJQKA")) (range 13))]
+    {:suit (suits (str s)) :rank (ranks (str r))} ; and there's no need to use into
+                                        ; when it's simple enough to build up a hashmap directly
+    ))
+
+;; one last solution demonstrates my initial thinking of getting the index of
+;; a matching key
+
+(fn [[s r]]
+  { :suit ({\D :diamond \H :heart \C :club \S :spade} s)
+   :rank  (.indexOf (seq "23456789TJQKA") r)})
+
+;; I have to imagine that this is a good balance of short and still readable
+;; here the answer uses chars as keys which is legal and direct
+;; using the java interop for indexOf demonstrates the power of knowing a little
+;; bit of java, which is one of my many weak points
+
+;; all in all I find this to be the most direct solution, no need for intermediate
+;; variables and building the map directly using the built-in map behaviors native
+;; to clojure --> is this what [[https://lispcast.com/what-is-point-free-style/][Point-Free Style]] looks like?
+#+end_src
+
 ** [[https://www.4clojure.com/problem/135][#135 Infix Calculator]]
    Write a higher order function that allows infix math assuming no precedence and only left to right calculation
 #+begin_src clojure
