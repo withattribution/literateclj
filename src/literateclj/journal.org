@@ -1,1 +1,62 @@
-* Perhaps just a general place to keep notes on my learning progress in general?
+* [[https://kirang.in/post/different-applications-of-reduce-in-clojure/][Deep Dive into Reduce]]
+  This is an interesting article about reduce, I will do my best to derive the contents of which without looking at the authors solution as a way to warm back up to functional thinking:
+** Reverse a Collection
+   My first thought is to take the last and use `conj` to add to a list
+#+begin_src clojure
+;; given a collection '(1 2 3), use reduce to reverse
+(reduce (fn [acc n] (conj acc n)) '() [1 2 3])
+#+end_src
+This is the exact answer as the blog post and takes into consideration that because of the sequence abstraction conj will do the performant thing, which is drilled into any early clojure programmer -- conj adds to end of vector, but to beginning of a singly-linked list.
+** Find the frequency of words in a string
+   split by spaces, (not necessarily the most robust) and then use reduce to build up a collection of word and count vectors EDIT: first thought is to use vectors because I'm new here, the probably right way to go about this is with a hashmap where the key is the word and the value is the count.
+#+begin_src clojure
+(def input-string "Hey there! I am the hey man! I like to hey the people")
+
+(defn word-freq [s]
+  (let [in (map
+             (fn [i] (clojure.string/replace i #"[^\w\s]" "")) (map clojure.string/lower-case (clojure.string/split input-string #" ")))]
+    (do (println in)
+        (reduce (fn [acc n]
+                  (if (contains? acc n)
+                    (update acc n inc)
+                    (assoc acc n 1))) {} in))))
+
+(word-freq input-string)
+;; => {"like" 1, "people" 1, "man" 1, "am" 1, "hey" 3, "i" 2, "to" 1, "the" 2, "there" 1}
+#+end_src
+In this case the answer on the blog post is a bit simpler, but then again the author does not clean the input as much as I do (blah! and blah are not considered different words etc), let's explore the authors solution:
+#+begin_src clojure
+;; I find inline function here a bit confusing so lets expand
+(defn w-freq [s]
+  (reduce (fn [acc n]
+            (assoc acc n (inc (acc n 0))))
+          {}
+          (clojure.string/split s #"\s")))
+(w-freq input-string)
+;; => {"like" 1, "people" 1, "man!" 1, "am" 1, "Hey" 1, "hey" 2, "there!" 1, "I" 2, "to" 1, "the" 2}
+
+;; something I haven't used is the default value that can be placed
+;; in a map lookup when using the "map as a function" for finding a key
+(def m {"somekey" 1 "otherkey" 2})
+
+;; if it exists then all is well
+(m "somekey")
+;; => 1
+
+;; if it does not exist and a default is available the default is presented
+(m "missingkey" 22)
+;; => 22
+#+end_src
+this answer is shorter than my own but what is more interesting is that it really starts the demonstrate the built-in powers of the clojure map, which is demonstrated after the expanded example. With just a simple map we can avoid a branching if-statement and instead use a plain old `assoc` for every key whether or not it is contained in the map previously -- this has more of a "do what I mean" kind of a feel to it, that is, there are fewer guard-expressions checking the state of the collection against the current input.
+** Transform all values of a map
+   So here we have an example of the idea of reduce being a more general function than a map function, and in fact [[https://clojuredesign.club/episode/058-reducing-it-down/][reduce and reducing functions]] are behind the idea of how immutable functional collections track state
+#+begin_src clojure
+(def v  {:v 1 :o 2 :t 3})
+
+(defn my-map [f coll]
+  reduce (fn [acc v]
+           (assoc acc (f v))) {} coll)
+
+(my-map inc v)
+;; => {:v 1, :o 2, :t 3}
+#+end_src

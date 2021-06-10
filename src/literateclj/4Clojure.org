@@ -2233,7 +2233,22 @@ Interested to see any solutions that might show alternative methods...and I didn
    TODO
    TODO
 ** [[https://www.4clojure.com/problem/153][#153 Pairwise Disjoint Sets]]
-   TODO
+   Ok got it, set of sets, see if any of the internal sets have any overlapping elements or return true if each set is disjointed
+#+begin_src clojure
+(def test1 #{#{\U} #{\s} #{\e \R \E} #{\P \L} #{\.}})
+(def test2 #{#{:a :b :c :d :e}
+             #{:a :b :c :d}
+             #{:a :b :c}
+             #{:a :b}
+             #{:a}})
+((fn [[s & ss]]
+   [s "\n" ss]) test1)
+;; => [#{\L \P}
+;; "\n"
+;; (#{\E \e \R} #{\U} #{\s} #{\.})]
+;; => ()
+;; => ()
+#+end_src
 ** [[https://www.4clojure.com/problem/157][#157 Indexing Sequences]]
    Transform a sequence into a sequence of pairs containing the original elements along with their index...seems like a map-index kinda problem:
 #+begin_src clojure
