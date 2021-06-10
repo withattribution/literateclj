@@ -60,3 +60,156 @@ this answer is shorter than my own but what is more interesting is that it reall
 (my-map inc v)
 ;; => {:v 1, :o 2, :t 3}
 #+end_src
+There are only slight differences between my version and the authors version there's always something to learn from picking apart a different solution:
+#+begin_src clojure
+;; I will say that the title heading is transform, which implies
+;; a general function will be applied to a value of a map, in the
+;; op's version `inc` is hard-coded as the transform, I'll keep my
+;; more general interpretation
+(defn op-map [f coll]
+  (reduce (fn [acc [k v]] ; so basically the difference is the very clear destructuring, which of course is super awesome!
+            (assoc acc k (f v)))
+          {}
+          coll))
+
+(op-map inc {:o 1 :v 2 :t 3})
+;; => {:o 2, :v 3, :t 4}
+
+#+end_src
+** Use Reduce to filter values out of a map
+   Use reduces accumulation to gather values that match a certain condition. So pass in a predicate and `conj` into a new map:
+#+begin_src clojure
+(defn my-filter [pred coll]
+  (reduce (fn [acc [key val]]
+            (if (pred val)
+              (conj acc [key val])
+              acc))
+          {}
+          coll))
+
+(my-filter even? {:v 1 :o 2 :g 3 :t 12})
+;; => {:o 2, :t 12}
+#+end_src
+My variation is slightly different the choice between `assoc` and `conj` being the only real difference which makes my solution ever so slightly less specific to hashmaps and of course conceptually accepting a predicate is again more general than hard coding the predicate into the function. The gist is the same.
+** Implement a mapping function
+I could argue that I already made a mapping function above but lets try to make one that works with basic clojure collections instead of just specific to maps:
+#+begin_src clojure
+(defn gen-map [f coll]
+  (reduce (fn [acc v]
+            (conj acc (f v)))
+          []
+          coll))
+
+(gen-map inc '(1 2 3))
+;; => [2 3 4]
+#+end_src
+** Sort list based on sum of elements
+   Hmmm, this seems to just be about using reduce in a regular way, as in, reduce as a tool not demonstrating how reduce is similar to some function or how reduce can be used to recreate some of the core functions etc:
+#+begin_src clojure
+(sort-by #(reduce + %) ['(8 8 7) '(4 1 5) '(1 1 1)])
+;; => ((1 1 1) (4 1 5) (8 8 7))
+#+end_src
+** Generate the Fibonacci Series
+   This is fun just because the fib series has a recursive vibe to it, as a reminder the fib series is found by adding the last two together, so there is a fundamental accumulation happening so: 0 1 1 2 3 5 8 13 21, normally the first two 1's are given and the 0 is not included:
+#+begin_src clojure
+(defn fib [n]
+  (take n (lazy-seq (reduce (fn [acc v]
+                              (if (< n 2)
+                                (reduced (take n acc))
+                                (conj acc (apply + (take-last 2 acc)))))
+                            [0 1]
+                            (range n)))))
+
+(fib 8)
+;; => (0 1 1 2 3 5 8 13)
+(fib 1)
+;; => (0)
+(fib 0)
+;; => ()
+(fib 2)
+;; => (0 1)
+#+end_src
+Fib never gets old, my solution is not the same as the authors so lets pick it apart:
+#+begin_src clojure
+;; slight modification to make fib generate more than a single case (range param n)
+(defn op-fib [n]
+  (reduce (fn [acc _]
+            (conj acc (+ (last acc) (last (butlast acc)))))
+          [0 1]
+          (range n)))
+
+(fib 8)
+;; => (0 1 1 2 3 5 8 13)
+(fib 0);; => ()
+(fib 1);; => (0)
+#+end_src
+ I have to admit this is a clearer solution than my own, straight forward add the last to the second last to the total collection and continue...done.
+** Finding Factorial
+   Ok, factorial is 5! = 5 * 4 * 3 * 2 * 1, like a reduce multiplication if you want to force reduce?
+#+begin_src clojure
+(defn my-fact [n]
+  (reduce (fn [acc v]
+            (* acc v))
+          (range 1 (inc n))))
+
+(my-fact 5)
+;; => 120
+#+end_src
+haha, the authors solution is even simpler, so good! `*` receives more than a single operand so I can just use `*`
+#+begin_src clojure
+(defn op-fact [n]
+  (reduce * (range 1 (inc n))))
+
+(op-fact 5)
+;; => 120
+#+end_src
+** Implementing Comp
+   This sounds interesting, `comp` takes an input and passes it through a chain of functions like a g(f(x)), so pass in x to function f, output of function f to function g and on, so I imagine reduce will be working on a collection of functions and the initial value will be the input passed through?
+#+begin_src clojure
+(defn my-comp [x fn-coll]
+  (reduce (fn [acc f]
+            (f acc))
+          x
+          (reverse fn-coll)))
+
+(my-comp 5 [inc (fn [z] (* z z))])
+;; => 26
+((comp inc (fn [z] (* z z))) 5)
+;; => 26
+#+end_src
+It seems like there's a difference between implementations, let's explore:
+#+begin_src clojure
+;; so I have to admit my implementation does not actually do what `comp`
+;; does, in that it does not return the function of a collection of functions
+;; instead my version returns the result of an input passed through multiple
+;; functions
+
+;; so the author's solution in that respect is more correct because a function is
+;; returned but let's see if I can unpack even more
+(defn op-comp [& fs]
+  (fn [xs]
+    (first
+      (reduce
+        #(vector (apply %2 %1))
+        (list xs)
+        (reverse fs)))))
+
+((op-comp inc dec inc inc) 5)
+
+;; so flip the function order (I have that)
+;; then the inputs of which there can be many, a sequence of one or more
+;; apply barfs them out of their sequence and applies arg-1 to fn-1...arg-n to fn-n
+;; and returns a vector of those, and then from that we return only the first?
+;; i think I will have to analyze this in chunks
+
+;; ok after a little playing around I have it, apply the fn to input x
+;; I have rewritten the inner function to explictly accept a single input
+;; since [& xs] gives the impression that the second inner function takes
+;; multiple arguments (it does not, it simply needs to wrap the input in a
+;; collection in order for `apply` to work it's magic on it)
+;; so only one input just like `comp` and multiple functions, the %1 is always the
+;; accumulated value which will always be the output of the previous function
+;; and in so we use apply to barf out the previous fns output into the next fns
+;; input, finally first unwraps the result from the underlying collection...
+;; I think my solution is simpler lol
+#+end_src
