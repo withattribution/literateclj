@@ -186,6 +186,7 @@ It seems like there's a difference between implementations, let's explore:
 
 ;; so the author's solution in that respect is more correct because a function is
 ;; returned but let's see if I can unpack even more
+
 (defn op-comp [& fs]
   (fn [xs]
     (first
