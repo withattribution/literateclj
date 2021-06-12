@@ -214,3 +214,57 @@ It seems like there's a difference between implementations, let's explore:
 ;; input, finally first unwraps the result from the underlying collection...
 ;; I think my solution is simpler lol
 #+end_src
+
+* [[https://twitter.com/Al_Grigor/status/1357028887209902088][Alexey Grigorev Twitter Interview Question]]
+Most candidates cannot solve this interview problem:
+
+🔸 Input: "aaaabbbcca"
+🔸 Output: [("a", 4), ("b", 3), ("c", 2), ("a", 1)]
+
+Write a function that converts the input to the output
+
+I ask it in the screening interview and give it 25 minutes
+
+How would you solve it?
+
+---
+
+Thought this was interesting given that this kind of problem is almost trivial in clojure:
+#+begin_src clojure
+;; this is a classic partition-by identity, not to be confused with a
+;; straight up `frequencies` core function solution
+;; then maybe a `juxt` if you're trying to show off
+(partition-by identity "aaaabbbcca")
+;; => ((\a \a \a \a) (\b \b \b) (\c \c) (\a))
+(let [[f s] ((juxt #(map (fn [i] (.toString (first i))) %) #(map count %)) (partition-by identity "aaaabbbcca"))]
+  (vec (partition 2 (interleave f s))))
+;; => [("a" 4) ("b" 3) ("c" 2) ("a" 1)]
+
+;; so this is kinda sad, don't think I'd hire me for this one haha, I did ;; this a few weeks? (time!) ago and came up with this:
+
+((fn [s]
+   (mapv
+     (fn [c]
+       (list (first c) (count c)))
+     (partition-by identity s)))
+ "aaaabbbcca")
+;; => [(\a 4) (\b 3) (\c 2) (\a 1)]
+
+;; and I believe the remaining are examples that I appreciated but did not come up with myself
+
+;; this is likely my favorite since it is so clear, my attempt to use
+;; `juxt` (one of my first) made my solution clumsy buuuuut it is
+;; interesting that like a mathematical equation, this solution seems to
+;; factor a `map` outside of the `juxt` in my solution, almost like a
+;; distributive law in math
+((fn [s]
+   (map (juxt first count)
+        (partition-by identity s)))
+ "aaaabbbcca")
+;; => ([\a 4] [\b 3] [\c 2] [\a 1])
+
+;; I have to say list comprehension is still something I'm getting used to
+(for [run (partition-by identity "aaaabbbcca")]
+  [(first run) (count run)])
+;; => ([\a 4] [\b 3] [\c 2] [\a 1])
+#+end_src
