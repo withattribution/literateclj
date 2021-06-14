@@ -269,3 +269,22 @@ Thought this was interesting given that this kind of problem is almost trivial i
   [(first run) (count run)])
 ;; => ([\a 4] [\b 3] [\c 2] [\a 1])
 #+end_src
+
+* [[https://clojuredesign.club/][Functional Design in Clojure]]
+   Trying this out, taking a few notes on the podcast, maybe trying out something like airr or other transcription or otherwise style apps:
+** [[https://clojuredesign.club/episode/076-multiple-views-on-juxt/][Ep 076: Multiple Views on Juxt]]
+   Juxt is a function that takes a function and returns a function that when the returned function is called it returns a vector of the returns values of every supplied function given the input: for example
+#+begin_src clojure
+((juxt :one :two) {:one 1 :two 2 :three 3 :four 4})
+;; => [1 2]
+#+end_src
+So with this method we strip values from a map and transform them into a vector, another typical use is to transform the values of a map:
+#+begin_src clojure
+(map (juxt key (comp inc val)) {:one 1 :two 2 :three 3})
+;; => ([:one 2] [:two 3] [:three 4])
+
+;; and then using `into {}` or `into (empty coll)` to return back to map structure
+(into {} (map (juxt key (comp inc val)) {:one 1 :two 2 :three 3}))
+;; => {:one 2, :two 3, :three 4}
+#+end_src
+This was harder for me to visualize and requires that one understands that map's fn takes a single value, but clojure's got you there because it passes the key val as a vector, so map's fn sees `[:one 1]`. `key` takes the key of the map and `comp inc val` increments the value of the vector and then the return unit of `juxt` is a vector. So one of the key take aways here is that a sequence of vectors of key value pairs is how clojure "sequentializes" a map!
