@@ -113,12 +113,12 @@ I could argue that I already made a mapping function above but lets try to make 
    This is fun just because the fib series has a recursive vibe to it, as a reminder the fib series is found by adding the last two together, so there is a fundamental accumulation happening so: 0 1 1 2 3 5 8 13 21, normally the first two 1's are given and the 0 is not included:
 #+begin_src clojure
 (defn fib [n]
-  (take n (lazy-seq (reduce (fn [acc v]
-                              (if (< n 2)
-                                (reduced (take n acc))
-                                (conj acc (apply + (take-last 2 acc)))))
-                            [0 1]
-                            (range n)))))
+  (take n (reduce (fn [acc v]
+                    (if (< n 2)
+                      (reduced (take n acc))
+                      (conj acc (apply + (take-last 2 acc)))))
+                  [0 1]
+                  (range n))))
 
 (fib 8)
 ;; => (0 1 1 2 3 5 8 13)
@@ -129,6 +129,7 @@ I could argue that I already made a mapping function above but lets try to make 
 (fib 2)
 ;; => (0 1)
 #+end_src
+<2021-06-14 Mon> Quick edit: noticed that `lazy-seq` was not needed since range n produces a finite sequence.
 Fib never gets old, my solution is not the same as the authors so lets pick it apart:
 #+begin_src clojure
 ;; slight modification to make fib generate more than a single case (range param n)
